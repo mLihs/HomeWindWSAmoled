@@ -1,0 +1,67 @@
+#######################################
+# Syntax Coloring Map for HomeWindWSAmoled
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+hr_state_t	KEYWORD1
+csc_state_t	KEYWORD1
+fan_state_t	KEYWORD1
+ui_power_state_t	KEYWORD1
+breathing_ease_type_t	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+homewind_init	KEYWORD2
+homewind_create_screens	KEYWORD2
+homewind_set_hr_state	KEYWORD2
+homewind_set_hr_state_simple	KEYWORD2
+homewind_set_csc_state	KEYWORD2
+homewind_set_csc_state_simple	KEYWORD2
+homewind_set_fan_state	KEYWORD2
+homewind_set_qr_code_url	KEYWORD2
+homewind_hide_settings_overlay	KEYWORD2
+powersave_init	KEYWORD2
+on_user_activity	KEYWORD2
+set_state_active	KEYWORD2
+set_state_dimmed	KEYWORD2
+set_state_soft_powersave	KEYWORD2
+set_breathing_inhale_curve	KEYWORD2
+set_breathing_exhale_curve	KEYWORD2
+update_powersave_icons	KEYWORD2
+lcd_lvgl_Init	KEYWORD2
+Touch_Init	KEYWORD2
+set_amoled_backlight	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
+HR_NOT_CONFIGURATED	LITERAL1
+HR_STATE_INACTIVE	LITERAL1
+HR_STATE_ACTIVE	LITERAL1
+CSC_NOT_CONFIGURATED	LITERAL1
+CSC_STATE_INACTIVE	LITERAL1
+CSC_STATE_ACTIVE	LITERAL1
+FAN_STATE_NOT_CONFIGURATED	LITERAL1
+FAN_STATE_INACTIVE	LITERAL1
+FAN_STATE_ERROR	LITERAL1
+FAN_STATE_ACTIVE	LITERAL1
+UI_POWER_STATE_ACTIVE	LITERAL1
+UI_POWER_STATE_DIMMED	LITERAL1
+UI_POWER_STATE_SOFT_POWERSAVE	LITERAL1
+BREATHING_EASE_LINEAR	LITERAL1
+BREATHING_EASE_QUADRATIC_IN	LITERAL1
+BREATHING_EASE_QUADRATIC_OUT	LITERAL1
+BREATHING_EASE_QUADRATIC_IN_OUT	LITERAL1
+BREATHING_EASE_CUBIC_IN	LITERAL1
+BREATHING_EASE_CUBIC_OUT	LITERAL1
+BREATHING_EASE_CUBIC_IN_OUT	LITERAL1
+BREATHING_EASE_SINE_IN	LITERAL1
+BREATHING_EASE_SINE_OUT	LITERAL1
+BREATHING_EASE_SINE_IN_OUT	LITERAL1
+
