@@ -1,6 +1,6 @@
 ---
 title: HomeWindWSAmoled Library Documentation
-version: 1.5.9
+version: 1.5.10
 library_name: HomeWindWSAmoled
 platform: ESP32
 framework: Arduino
@@ -21,7 +21,7 @@ features:
   - Touch Screen Support
   - QR Code Settings
   - Customizable Breathing Animation
-api_version: 1.5.9
+api_version: 1.5.10
 license: MIT
 author: HomeWind Project
 ---

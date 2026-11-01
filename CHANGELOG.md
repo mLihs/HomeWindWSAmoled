@@ -4,6 +4,21 @@ All notable changes to the HomeWindWSAmoled library are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.5.10] - 2026-10-29
+
+### Fixed
+- **Board V1.1 black display**: V1.1 moves `LCD_CS` from GPIO 9 to GPIO 46 (swapped with `IMU_INT1`). `lcd_lvgl_Init()` now detects the revision via `LCD_TE` (GPIO 45, V1.1 only): panel started with CS 46, TE pulses counted for 100 ms, ≥3 pulses = V1.1, otherwise restart with CS 9 (V1). Details in `docs/fix.md`.
+- **QMI8658**: `INT1`/`INT2` outputs no longer enabled (IMU is polled over I2C). A soft reset before detection releases `INT1` after ESP-only restarts.
+
+### Added
+- **API**: `homewind_get_board_revision()`, `homewind_get_board_revision_name()`, `homewind_get_te_pulse_count()` (`lcd_get_*` in `lcd_bsp.h`).
+
+### Changed
+- **lcd_config.h**: `EXAMPLE_PIN_NUM_LCD_CS` replaced by `EXAMPLE_PIN_NUM_LCD_CS_V1` (9), `EXAMPLE_PIN_NUM_LCD_CS_V1_1` (46), plus `EXAMPLE_PIN_NUM_LCD_TE` (45), `LCD_TE_PROBE_MS`, `LCD_TE_MIN_PULSES`.
+- **Startup**: about 100 ms longer on V1.1, about 350 ms longer on V1 (second panel start).
+
+---
+
 ## [1.5.9] - 2026-02-20
 
 ### Added

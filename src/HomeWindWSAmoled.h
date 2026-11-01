@@ -6,7 +6,7 @@
  * A comprehensive UI library for ESP32-based fitness/cycling devices
  * featuring AMOLED display support, LVGL graphics, and power management.
  * 
- * Version: 1.5.9
+ * Version: 1.5.10
  * 
  * Features:
  * - Heart Rate (HR) widget with sensor state management
@@ -46,8 +46,8 @@
 // Library version information
 #define HOMEWIND_WS_AMOLED_VERSION_MAJOR 1
 #define HOMEWIND_WS_AMOLED_VERSION_MINOR 5
-#define HOMEWIND_WS_AMOLED_VERSION_PATCH 9
-#define HOMEWIND_WS_AMOLED_VERSION "1.5.9"
+#define HOMEWIND_WS_AMOLED_VERSION_PATCH 10
+#define HOMEWIND_WS_AMOLED_VERSION "1.5.10"
 
 #ifdef __cplusplus
 extern "C" {
@@ -146,6 +146,22 @@ void homewind_init(void);
  * @note Only works if QMI8658 IMU hardware is present
  */
 #define homewind_get_imu_tilt_thresholds(tilt_right, tilt_left) lcd_get_imu_tilt_thresholds(tilt_right, tilt_left)
+
+/**
+ * @brief Get the board revision detected during homewind_init()
+ *
+ * V1 and V1.1 differ in the display chip select (GPIO 9 vs. GPIO 46).
+ * The revision is detected once at startup via the LCD_TE line (V1.1 only).
+ *
+ * @return LCD_BOARD_REV_V1, LCD_BOARD_REV_V1_1, or LCD_BOARD_REV_UNKNOWN before init
+ */
+#define homewind_get_board_revision() lcd_get_board_revision()
+
+/** @brief Board revision as text: "V1", "V1.1" or "unknown" */
+#define homewind_get_board_revision_name() lcd_get_board_revision_name()
+
+/** @brief LCD_TE pulses counted during detection (diagnostics: V1 = 0, V1.1 ≈ 6) */
+#define homewind_get_te_pulse_count() lcd_get_te_pulse_count()
 
 #endif // HOMEWIND_WS_AMOLED_H
 

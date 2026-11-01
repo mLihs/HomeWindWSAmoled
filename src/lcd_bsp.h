@@ -37,6 +37,19 @@ static void example_lvgl_touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data);
 esp_err_t set_amoled_backlight(uint8_t brig);
 void lcd_set_rotation(lv_disp_rot_t rotation);
 
+typedef enum {
+  LCD_BOARD_REV_UNKNOWN = 0,  /* lcd_lvgl_Init() has not run yet */
+  LCD_BOARD_REV_V1,
+  LCD_BOARD_REV_V1_1,
+} lcd_board_rev_t;
+
+/** Board revision detected by lcd_lvgl_Init(). */
+lcd_board_rev_t lcd_get_board_revision(void);
+/** "V1", "V1.1" or "unknown". */
+const char *lcd_get_board_revision_name(void);
+/** LCD_TE pulses seen during detection (V1: 0, V1.1: about 6). */
+uint32_t lcd_get_te_pulse_count(void);
+
 #ifdef QMI8658_SLAVE_ADDR_L
 void lcd_set_imu_tilt_thresholds(float tilt_right, float tilt_left);
 void lcd_get_imu_tilt_thresholds(float *tilt_right, float *tilt_left);

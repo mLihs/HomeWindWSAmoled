@@ -6,7 +6,11 @@
 
 #define LCD_BIT_PER_PIXEL              16
 
-#define EXAMPLE_PIN_NUM_LCD_CS            9
+// Board revision V1 and V1.1 swap LCD_CS and IMU_INT1; V1.1 adds LCD_TE.
+// The revision is detected at runtime in lcd_lvgl_Init().
+#define EXAMPLE_PIN_NUM_LCD_CS_V1         9
+#define EXAMPLE_PIN_NUM_LCD_CS_V1_1       46
+#define EXAMPLE_PIN_NUM_LCD_TE            45
 #define EXAMPLE_PIN_NUM_LCD_PCLK          10 
 #define EXAMPLE_PIN_NUM_LCD_DATA0         11
 #define EXAMPLE_PIN_NUM_LCD_DATA1         12
@@ -14,6 +18,9 @@
 #define EXAMPLE_PIN_NUM_LCD_DATA3         14
 #define EXAMPLE_PIN_NUM_LCD_RST           21
 #define EXAMPLE_PIN_NUM_BK_LIGHT          (-1)
+
+#define LCD_TE_PROBE_MS                100   // ~6 TE pulses at 60 Hz
+#define LCD_TE_MIN_PULSES              3     // below this the board is V1
 
 #define EXAMPLE_LVGL_BUF_HEIGHT        (EXAMPLE_LCD_V_RES / 8)   /* 57 lines, ~64 KB total */
 

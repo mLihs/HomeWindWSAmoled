@@ -14,9 +14,15 @@ static SemaphoreHandle_t lvgl_mux = NULL; //mutex semaphores
 
 
 
+static const char *TAG = "lcd_bsp";
+
 static esp_lcd_panel_io_handle_t amoled_panel_io_handle = NULL; 
 static lv_disp_t *g_display = NULL;
 static lv_disp_drv_t *g_disp_drv = NULL;
+
+static lcd_board_rev_t g_board_rev = LCD_BOARD_REV_UNKNOWN;
+static uint32_t g_te_pulses = 0;
+static volatile uint32_t g_te_edge_count = 0;
 
 #ifdef QMI8658_SLAVE_ADDR_L
 // Global variables for IMU rotation tilt angles (in m/s²)
@@ -47,6 +53,79 @@ static const sh8601_lcd_init_cmd_t lcd_init_cmds[] =
   {0x51, (uint8_t []){0xFF}, 1, 0},    //亮度
 };
 
+static void lcd_panel_start(int cs_gpio, lv_disp_drv_t *disp_drv,
+                            esp_lcd_panel_io_handle_t *io_handle, esp_lcd_panel_handle_t *panel_handle)
+{
+  const esp_lcd_panel_io_spi_config_t io_config = SH8601_PANEL_IO_QSPI_CONFIG(cs_gpio,
+                                                                              example_notify_lvgl_flush_ready,
+                                                                              disp_drv);
+
+  sh8601_vendor_config_t vendor_config = 
+  {
+    .init_cmds = lcd_init_cmds,
+    .init_cmds_size = sizeof(lcd_init_cmds) / sizeof(lcd_init_cmds[0]),
+    .flags = 
+    {
+      .use_qspi_interface = 1,
+    },
+  };
+  ESP_ERROR_CHECK_WITHOUT_ABORT(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)LCD_HOST, &io_config, io_handle));
+  const esp_lcd_panel_dev_config_t panel_config = 
+  {
+    .reset_gpio_num = EXAMPLE_PIN_NUM_LCD_RST,
+    .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB,
+    .bits_per_pixel = LCD_BIT_PER_PIXEL,
+    .vendor_config = &vendor_config,
+  };
+  ESP_ERROR_CHECK_WITHOUT_ABORT(esp_lcd_new_panel_sh8601(*io_handle, &panel_config, panel_handle));
+  ESP_ERROR_CHECK_WITHOUT_ABORT(esp_lcd_panel_reset(*panel_handle));
+  ESP_ERROR_CHECK_WITHOUT_ABORT(esp_lcd_panel_init(*panel_handle));
+}
+
+static void IRAM_ATTR lcd_te_isr(void *arg)
+{
+  g_te_edge_count++;
+}
+
+static uint32_t lcd_count_te_pulses(uint32_t window_ms)
+{
+  const gpio_config_t te_conf = {
+    .pin_bit_mask = 1ULL << EXAMPLE_PIN_NUM_LCD_TE,
+    .mode = GPIO_MODE_INPUT,
+    .pull_up_en = GPIO_PULLUP_DISABLE,
+    .pull_down_en = GPIO_PULLDOWN_ENABLE,
+    .intr_type = GPIO_INTR_POSEDGE,
+  };
+  uint32_t pulses = 0;
+
+  if (gpio_config(&te_conf) == ESP_OK) {
+    // ESP_ERR_INVALID_STATE: service already installed by someone else, keep it.
+    esp_err_t err = gpio_install_isr_service(0);
+    bool own_service = (err == ESP_OK);
+    if (own_service || err == ESP_ERR_INVALID_STATE) {
+      g_te_edge_count = 0;
+      if (gpio_isr_handler_add(EXAMPLE_PIN_NUM_LCD_TE, lcd_te_isr, NULL) == ESP_OK) {
+        vTaskDelay(pdMS_TO_TICKS(window_ms));
+        gpio_isr_handler_remove(EXAMPLE_PIN_NUM_LCD_TE);
+        pulses = g_te_edge_count;
+      }
+      if (own_service) {
+        gpio_uninstall_isr_service();
+      }
+    }
+  }
+  gpio_reset_pin(EXAMPLE_PIN_NUM_LCD_TE);
+  return pulses;
+}
+
+// V1 wires QMI8658 INT1 to GPIO 46, which the probe drives as V1.1 chip select.
+// A soft reset puts INT1/INT2 back to high-Z even after an ESP-only restart.
+static void lcd_release_imu_int_pins(void)
+{
+  qmi8658_write_reg(Qmi8658Register_Reset, 0xb0);
+  vTaskDelay(pdMS_TO_TICKS(10));
+}
+
 void lcd_lvgl_Init(void)
 {
   static lv_disp_draw_buf_t disp_buf; // contains internal graphic buffer(s) called draw buffer(s)
@@ -60,33 +139,25 @@ void lcd_lvgl_Init(void)
                                                                EXAMPLE_LCD_H_RES * EXAMPLE_LCD_V_RES * LCD_BIT_PER_PIXEL / 8);
   ESP_ERROR_CHECK_WITHOUT_ABORT(spi_bus_initialize(LCD_HOST, &buscfg, SPI_DMA_CH_AUTO));
   esp_lcd_panel_io_handle_t io_handle = NULL;
-
-  const esp_lcd_panel_io_spi_config_t io_config = SH8601_PANEL_IO_QSPI_CONFIG(EXAMPLE_PIN_NUM_LCD_CS,
-                                                                              example_notify_lvgl_flush_ready,
-                                                                              &disp_drv);
-
-  sh8601_vendor_config_t vendor_config = 
-  {
-    .init_cmds = lcd_init_cmds,
-    .init_cmds_size = sizeof(lcd_init_cmds) / sizeof(lcd_init_cmds[0]),
-    .flags = 
-    {
-      .use_qspi_interface = 1,
-    },
-  };
-  ESP_ERROR_CHECK_WITHOUT_ABORT(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)LCD_HOST, &io_config, &io_handle));
-  amoled_panel_io_handle = io_handle;
   esp_lcd_panel_handle_t panel_handle = NULL;
-  const esp_lcd_panel_dev_config_t panel_config = 
-  {
-    .reset_gpio_num = EXAMPLE_PIN_NUM_LCD_RST,
-    .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB,
-    .bits_per_pixel = LCD_BIT_PER_PIXEL,
-    .vendor_config = &vendor_config,
-  };
-  ESP_ERROR_CHECK_WITHOUT_ABORT(esp_lcd_new_panel_sh8601(io_handle, &panel_config, &panel_handle));
-  ESP_ERROR_CHECK_WITHOUT_ABORT(esp_lcd_panel_reset(panel_handle));
-  ESP_ERROR_CHECK_WITHOUT_ABORT(esp_lcd_panel_init(panel_handle));
+
+  // Only V1.1 has LCD_TE, and the panel emits TE only once the init reached it,
+  // so TE pulses with CS on GPIO 46 identify V1.1. Otherwise fall back to V1.
+  lcd_release_imu_int_pins();
+  lcd_panel_start(EXAMPLE_PIN_NUM_LCD_CS_V1_1, &disp_drv, &io_handle, &panel_handle);
+  g_te_pulses = lcd_count_te_pulses(LCD_TE_PROBE_MS);
+  if (g_te_pulses >= LCD_TE_MIN_PULSES) {
+    g_board_rev = LCD_BOARD_REV_V1_1;
+  } else {
+    esp_lcd_panel_del(panel_handle);
+    esp_lcd_panel_io_del(io_handle);
+    gpio_reset_pin(EXAMPLE_PIN_NUM_LCD_CS_V1_1);
+    lcd_panel_start(EXAMPLE_PIN_NUM_LCD_CS_V1, &disp_drv, &io_handle, &panel_handle);
+    g_board_rev = LCD_BOARD_REV_V1;
+  }
+  ESP_LOGI(TAG, "Board %s (TE pulses: %lu)", lcd_get_board_revision_name(), (unsigned long)g_te_pulses);
+
+  amoled_panel_io_handle = io_handle;
   ESP_ERROR_CHECK_WITHOUT_ABORT(esp_lcd_panel_disp_on_off(panel_handle, true));
 
   lv_init();
@@ -264,6 +335,25 @@ esp_err_t set_amoled_backlight(uint8_t brig)
   lcd_cmd <<= 8;
   lcd_cmd |= 0x02 << 24;
   return esp_lcd_panel_io_tx_param(amoled_panel_io_handle, lcd_cmd, &brig,1);
+}
+
+lcd_board_rev_t lcd_get_board_revision(void)
+{
+  return g_board_rev;
+}
+
+const char *lcd_get_board_revision_name(void)
+{
+  switch (g_board_rev) {
+    case LCD_BOARD_REV_V1:   return "V1";
+    case LCD_BOARD_REV_V1_1: return "V1.1";
+    default:                 return "unknown";
+  }
+}
+
+uint32_t lcd_get_te_pulse_count(void)
+{
+  return g_te_pulses;
 }
 
 void lcd_set_rotation(lv_disp_rot_t rotation) {

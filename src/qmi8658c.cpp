@@ -711,8 +711,9 @@ unsigned char qmi8658_get_id(void)
 			qmi8658_on_demand_cali();
 
 			g_imu.cfg.ctrl8_value = 0xc0;
-			//QMI8658_INT1_ENABLE, QMI8658_INT2_ENABLE
-			qmi8658_write_reg(Qmi8658Register_Ctrl1, 0x60|QMI8658_INT2_ENABLE|QMI8658_INT1_ENABLE);
+			// INT1/INT2 stay high-Z: the IMU is polled over I2C, and INT1 shares
+			// a GPIO with LCD_CS on the other board revision (V1: GPIO 46, V1.1: GPIO 9).
+			qmi8658_write_reg(Qmi8658Register_Ctrl1, 0x60);
 			qmi8658_read_reg(Qmi8658Register_Revision, &qmi8658_revision_id, 1);			
 			qmi8658_read_reg(Qmi8658Register_firmware_id, firmware_id, 3);
 			qmi8658_read_reg(Qmi8658Register_uuid, uuid, 6);
