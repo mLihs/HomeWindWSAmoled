@@ -4,6 +4,13 @@ All notable changes to the HomeWindWSAmoled library are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.6.0] - 2026-11-07
+
+### Added
+- **API**: `homewind_set_csc_power(int32_t watts)` shows power on the cadence card. `watts < 0` hides it (status line as before, e.g. "85 RPM"); `watts >= 0` shows power and cadence, e.g. "210 W 85 rpm". Inter Bold 24 has no middle dot, and "1999 W 199 rpm" is the widest text that fits the 189 px label, hence no separator and lowercase "rpm". The string is cached like the cadence string. The powersave screen still shows the cadence number only.
+
+---
+
 ## [1.5.10] - 2026-10-29
 
 ### Fixed

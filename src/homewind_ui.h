@@ -81,6 +81,13 @@ void homewind_set_csc_state(csc_state_t state);
  */
 void homewind_set_csc_cadence(uint16_t cadence);
 
+/**
+ * @brief Set the power shown on the CSC card (keep state, name and cadence)
+ * @param watts Power in W; < 0 hides it ("85 RPM"), >= 0 shows power and
+ *              cadence in the active status line ("210 W 85 rpm")
+ */
+void homewind_set_csc_power(int32_t watts);
+
 /* Legacy API (kept for backwards compatibility) */
 #define homewind_set_csc_state_simple(state) homewind_set_csc_state(state)
 

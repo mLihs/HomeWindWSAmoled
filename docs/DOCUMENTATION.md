@@ -1,6 +1,6 @@
 ---
 title: HomeWindWSAmoled Library Documentation
-version: 1.5.10
+version: 1.6.0
 library_name: HomeWindWSAmoled
 platform: ESP32
 framework: Arduino
@@ -21,7 +21,7 @@ features:
   - Touch Screen Support
   - QR Code Settings
   - Customizable Breathing Animation
-api_version: 1.5.10
+api_version: 1.6.0
 license: MIT
 author: HomeWind Project
 ---
@@ -877,6 +877,7 @@ void homewind_set_hr_state_simple(hr_state_t state);
 // CSC Widget
 void homewind_set_csc_state(csc_state_t state, const char* sensor_name, uint16_t cadence);
 void homewind_set_csc_state_simple(csc_state_t state);
+void homewind_set_csc_power(int32_t watts);  // < 0 hides power
 
 // Fan Widget
 void homewind_set_fan_state(uint8_t fan_index, fan_state_t state, bool is_on);

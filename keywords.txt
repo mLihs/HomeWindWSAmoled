@@ -22,6 +22,7 @@ homewind_set_hr_state	KEYWORD2
 homewind_set_hr_state_simple	KEYWORD2
 homewind_set_csc_state	KEYWORD2
 homewind_set_csc_state_simple	KEYWORD2
+homewind_set_csc_power	KEYWORD2
 homewind_set_fan_state	KEYWORD2
 homewind_set_qr_code_url	KEYWORD2
 homewind_hide_settings_overlay	KEYWORD2

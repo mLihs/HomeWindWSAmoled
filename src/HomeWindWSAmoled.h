@@ -6,7 +6,7 @@
  * A comprehensive UI library for ESP32-based fitness/cycling devices
  * featuring AMOLED display support, LVGL graphics, and power management.
  * 
- * Version: 1.5.10
+ * Version: 1.6.0
  * 
  * Features:
  * - Heart Rate (HR) widget with sensor state management
@@ -45,9 +45,9 @@
 
 // Library version information
 #define HOMEWIND_WS_AMOLED_VERSION_MAJOR 1
-#define HOMEWIND_WS_AMOLED_VERSION_MINOR 5
-#define HOMEWIND_WS_AMOLED_VERSION_PATCH 10
-#define HOMEWIND_WS_AMOLED_VERSION "1.5.10"
+#define HOMEWIND_WS_AMOLED_VERSION_MINOR 6
+#define HOMEWIND_WS_AMOLED_VERSION_PATCH 0
+#define HOMEWIND_WS_AMOLED_VERSION "1.6.0"
 
 #ifdef __cplusplus
 extern "C" {

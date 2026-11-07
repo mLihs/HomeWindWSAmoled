@@ -54,12 +54,13 @@ homewind_set_hr_value(135);                          // Nur Wert aktualisieren
 |-----------|-----|----------|
 | **state** | `csc_state_t` | `CSC_STATE_INACTIVE`, `CSC_STATE_ERROR`, `CSC_STATE_ACTIVE` |
 | **sensor_name** | `const char*` | Beliebig, **max. 31 Zeichen**; `NULL` = aktueller Name bleibt |
-| **cadence** | `uint16_t` | RPM; **0** = Wert bleibt unverändert |
+| **cadence** | `uint16_t` | RPM; **0** wird als "0 RPM" angezeigt |
 
 ### Weitere CSC-Funktionen
 
 - `homewind_set_csc_state(state)` – nur State setzen (Name/Cadence unverändert)
-- `homewind_set_csc_cadence(cadence)` – nur RPM setzen; intern nur bei `cadence > 0` aktualisiert
+- `homewind_set_csc_cadence(cadence)` – nur RPM setzen (auch 0); neu gezeichnet nur bei geändertem Wert
+- `homewind_set_csc_power(watts)` (ab 1.6.0) – Leistung auf der Cadence-Karte: `watts < 0` blendet sie aus ("85 RPM"), `watts >= 0` zeigt Leistung und Cadence ("210 W 85 rpm"); neu gezeichnet nur bei geändertem Wert
 
 ### Beispiele
 
@@ -68,6 +69,8 @@ homewind_set_csc(CSC_STATE_INACTIVE, NULL, 0);       // Nicht konfiguriert
 homewind_set_csc(CSC_STATE_ERROR, "Wahoo", 0);       // Nicht verbunden
 homewind_set_csc(CSC_STATE_ACTIVE, "Wahoo", 90);     // Verbunden + Wert
 homewind_set_csc_cadence(95);                        // Nur Cadence aktualisieren
+homewind_set_csc_power(210);                         // "210 W 95 rpm"
+homewind_set_csc_power(-1);                          // Leistung ausblenden: "95 RPM"
 ```
 
 ---

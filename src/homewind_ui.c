@@ -63,6 +63,7 @@ static lv_obj_t *lbl_csc_status;
 static csc_state_t csc_current_state = CSC_NOT_CONFIGURATED;
 static char csc_sensor_name[32] = "CSC Sensor";
 static uint16_t csc_cadence_value = 0;
+static int32_t csc_power_value = -1;  /* < 0 = power hidden */
 
 /* --- Fan Widget Objects (Figma: pill + circle + state text only) --- */
 #define MAX_FANS 4
@@ -96,8 +97,9 @@ static char qr_code_url[128] = "https://martin-lihs.com";
 /* --- Cached formatted strings (avoid repeated snprintf calls) --- */
 static char hr_value_str[8] = "--";
 static uint16_t hr_value_str_cached = 0xFFFF;  /* Force first format */
-static char csc_cadence_str[16] = "0 RPM";
+static char csc_cadence_str[24] = "0 RPM";
 static uint16_t csc_cadence_str_cached = 0;
+static int32_t csc_power_str_cached = -1;
 
 /* --- HR widget cache (reduces redundant LVGL updates) --- */
 static hr_state_t hr_widget_cache_state = (hr_state_t)-1;
@@ -504,12 +506,20 @@ static const char* get_hr_value_string(void)
     return hr_value_str;
 }
 
-/* Helper: Get cached CSC cadence string (only format if value changed) */
+/* Helper: Get cached CSC cadence string (only format if value changed).
+ * With power, "1999 W 199 rpm" fits the 189 px label at Inter Bold 24; the
+ * font has no middle dot, and "RPM" or a separator would overflow. */
 static const char* get_csc_cadence_string(void)
 {
-    if (csc_cadence_value != csc_cadence_str_cached) {
-        snprintf(csc_cadence_str, sizeof(csc_cadence_str), "%d RPM", csc_cadence_value);
+    if (csc_cadence_value != csc_cadence_str_cached || csc_power_value != csc_power_str_cached) {
+        if (csc_power_value < 0) {
+            snprintf(csc_cadence_str, sizeof(csc_cadence_str), "%d RPM", csc_cadence_value);
+        } else {
+            snprintf(csc_cadence_str, sizeof(csc_cadence_str), "%ld W %d rpm",
+                     (long)csc_power_value, csc_cadence_value);
+        }
         csc_cadence_str_cached = csc_cadence_value;
+        csc_power_str_cached = csc_power_value;
     }
     return csc_cadence_str;
 }
@@ -1193,6 +1203,15 @@ void homewind_set_csc_cadence(uint16_t cadence)
 {
     if (cadence != csc_cadence_value) {
         csc_cadence_value = cadence;
+        update_csc_widget();
+    }
+}
+
+void homewind_set_csc_power(int32_t watts)
+{
+    if (watts < 0) watts = -1;
+    if (watts != csc_power_value) {
+        csc_power_value = watts;
         update_csc_widget();
     }
 }
