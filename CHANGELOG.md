@@ -4,6 +4,21 @@ All notable changes to the HomeWindWSAmoled library are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.6.1] - 2026-11-08
+
+### Changed
+- **Display buffer:** `EXAMPLE_LVGL_BUF_HEIGHT` from 1/8 to 1/16 screen height (28 lines, 2 × 15,680 B instead of 2 × 31,920 B), still double-buffered. About 32.5 KB more free internal (DMA) RAM on Touch. LVGL flushes full-width strips of 28 lines (before: 56, the rounder keeps even rows); the last strip is 8 lines.
+- **QSPI bus `max_transfer_sz`:** one draw buffer (15,680 B) instead of a full frame (255,360 B). The SPI bus allocates its DMA descriptors (12 B per 4092 B, TX and RX) from this size: 4 instead of 63 each, about 1.4 KB less internal RAM. The bus rounds the limit up to whole descriptors (4 × 4092 = 16,368 B), and every flush is at most one draw buffer (15,680 B), so each flush stays one transfer.
+- **Settings modal animation:** the overlay slides in over the last 60 px (`MODAL_SLIDE_DISTANCE`) in 180 ms with ease-out, and out the same way with ease-in, instead of the full screen height in 300 ms with ease-in-out. Every animation frame redraws almost the whole screen, so the long slide showed only a few frames and looked slow.
+
+### Fixed
+- **Powersave screen showed stale sensor values:** while the powersave screen was not shown, `update_powersave_icons()` stored new HR/CSC values in its change cache without drawing them. On the next enter the values matched the cache, so the labels kept the values from the previous powersave until the value changed (for example cadence 0 or a disconnected sensor stayed wrong). The cache now only holds what the labels show. Fan counts were not affected.
+- **Touch felt sticky:** LVGL read the touch every 50 ms (`LV_INDEV_DEF_READ_PERIOD`), and the read callback skipped two of three reads, so the FT3168 was polled only about every 150 ms; releases came late and short taps could be lost. The library now sets its own touch read period to 20 ms (`TOUCH_READ_PERIOD_MS`) and polls on every read. The global `lv_conf.h` is unchanged.
+- **Touch read errors:** `getTouch()` evaluated an uninitialised status byte when the I2C read failed and could report a press at random coordinates; it now reports no touch. `I2C_read_buff()` and `I2C_writr_buff()` return `esp_err_t` instead of a truncated `uint8_t`.
+- **Main screen froze after waking from powersave with the settings modal open:** `homewind_hide_settings_overlay()` hid the overlay but left the modal marked as visible, so all HR, cadence and fan updates were skipped until the modal was opened and closed again. It now stops the slide animation and clears the modal state.
+
+---
+
 ## [1.6.0] - 2026-11-07
 
 ### Added

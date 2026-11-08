@@ -9,9 +9,9 @@
 // If larger writes are needed, increase this value
 #define I2C_WRITE_MAX_LEN 32
 
-uint8_t I2C_writr_buff(uint8_t addr, uint8_t reg, uint8_t *buf, uint8_t len)
+esp_err_t I2C_writr_buff(uint8_t addr, uint8_t reg, uint8_t *buf, uint8_t len)
 {
-  uint8_t ret;
+  esp_err_t ret;
   
   // Use stack buffer instead of heap allocation (avoids malloc/free overhead and fragmentation)
   // Buffer size: 1 byte for register + max payload
@@ -31,9 +31,9 @@ uint8_t I2C_writr_buff(uint8_t addr, uint8_t reg, uint8_t *buf, uint8_t len)
   ret = i2c_master_write_to_device(TEST_I2C_PORT, addr, stack_buf, len + 1, 1000);
   return ret;
 }
-uint8_t I2C_read_buff(uint8_t addr,uint8_t reg,uint8_t *buf,uint8_t len)
+esp_err_t I2C_read_buff(uint8_t addr,uint8_t reg,uint8_t *buf,uint8_t len)
 {
-  uint8_t ret;
+  esp_err_t ret;
   ret = i2c_master_write_read_device(TEST_I2C_PORT,addr,&reg,1,buf,len,1000);
   return ret;
 }
@@ -61,12 +61,12 @@ void Touch_Init(void)
 }
 uint8_t getTouch(uint16_t *x,uint16_t *y)
 {
-  uint8_t data;
+  uint8_t data = 0;
   uint8_t buf[4];
-  I2C_read_buff(I2C_ADDR_FT3168,0x02,&data,1);
+  if (I2C_read_buff(I2C_ADDR_FT3168,0x02,&data,1) != ESP_OK) return 0;
   if(data)
   {
-    I2C_read_buff(I2C_ADDR_FT3168,0x03,buf,4);
+    if (I2C_read_buff(I2C_ADDR_FT3168,0x03,buf,4) != ESP_OK) return 0;
     *x = (((uint16_t)buf[0] & 0x0f)<<8) | (uint16_t)buf[1];
     *y = (((uint16_t)buf[2] & 0x0f)<<8) | (uint16_t)buf[3];
     if(*x > EXAMPLE_LCD_H_RES)

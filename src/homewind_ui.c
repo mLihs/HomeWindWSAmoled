@@ -29,7 +29,8 @@ LV_FONT_DECLARE(lv_font_icon_56);
 #define RADIUS_ICON             18
 
 /* --- Animation Timing --- */
-#define MODAL_ANIMATION_TIME_MS  300  // Animation duration for modal overlay
+#define MODAL_ANIMATION_TIME_MS  180  // Animation duration for modal overlay
+#define MODAL_SLIDE_DISTANCE     60   // Overlay slides this far (px); every frame redraws the moving area
 #define FAN_TOGGLE_ANIMATION_TIME_MS  300  // Animation duration for fan toggle
 #define FAN_ANIM_RESOLUTION  1024  // Animation resolution for color interpolation
 
@@ -183,19 +184,16 @@ static void start_anim(lv_anim_t *anim, void *var, int32_t from, int32_t to, uin
 /* --- Animation Functions --- */
 static void animate_overlay_in(void)
 {
-    lv_disp_t *disp = lv_disp_get_default();
-    lv_coord_t h = lv_disp_get_ver_res(disp);
-
     /* FIX Issue #2: Mark modal as visible (skip UI updates while open) */
     settings_modal_visible = true;
     ui_refresh_pending = false;
 
-    lv_obj_set_y(settings_overlay, h + 6);  // Start from off-screen position
+    lv_obj_set_y(settings_overlay, -4 + MODAL_SLIDE_DISTANCE);
     lv_obj_clear_flag(settings_overlay, LV_OBJ_FLAG_HIDDEN);
 
     lv_anim_t a;
-    start_anim(&a, settings_overlay, h + 6, -4, MODAL_ANIMATION_TIME_MS,
-               lv_anim_path_ease_in_out, (lv_anim_exec_xcb_t)lv_obj_set_y, NULL, NULL);
+    start_anim(&a, settings_overlay, -4 + MODAL_SLIDE_DISTANCE, -4, MODAL_ANIMATION_TIME_MS,
+               lv_anim_path_ease_out, (lv_anim_exec_xcb_t)lv_obj_set_y, NULL, NULL);
 }
 
 static void anim_overlay_out_ready_cb(lv_anim_t *a)
@@ -227,12 +225,10 @@ static void anim_overlay_out_ready_cb(lv_anim_t *a)
 
 static void animate_overlay_out(void)
 {
-    lv_disp_t *disp = lv_disp_get_default();
-    lv_coord_t h = lv_disp_get_ver_res(disp);
-
     lv_anim_t a;
-    start_anim(&a, settings_overlay, lv_obj_get_y(settings_overlay), h + 4, MODAL_ANIMATION_TIME_MS,
-               lv_anim_path_ease_in_out, (lv_anim_exec_xcb_t)lv_obj_set_y, anim_overlay_out_ready_cb, NULL);
+    start_anim(&a, settings_overlay, lv_obj_get_y(settings_overlay), -4 + MODAL_SLIDE_DISTANCE,
+               MODAL_ANIMATION_TIME_MS, lv_anim_path_ease_in, (lv_anim_exec_xcb_t)lv_obj_set_y,
+               anim_overlay_out_ready_cb, NULL);
 }
 
 /* --- Fan Toggle Animation (static allocation - no heap fragmentation) --- */
@@ -1268,8 +1264,12 @@ void homewind_set_qr_code_url(const char* url)
 void homewind_hide_settings_overlay(void)
 {
     if (settings_overlay) {
+        lv_anim_del(settings_overlay, (lv_anim_exec_xcb_t)lv_obj_set_y);
         lv_obj_add_flag(settings_overlay, LV_OBJ_FLAG_HIDDEN);
     }
+    /* Callers refresh the main screen themselves (powersave wake) */
+    settings_modal_visible = false;
+    ui_refresh_pending = false;
 }
 
 /* --- Library Initialization (idempotent) --- */

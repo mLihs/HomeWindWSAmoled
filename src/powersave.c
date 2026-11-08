@@ -497,15 +497,9 @@ void update_powersave_icons(hr_state_t hr_state, csc_state_t csc_state,
 {
     if (!scr_powersave) return;
     
-    /* Skip update if powersave screen is not active (save CPU) */
+    /* Skip update if powersave screen is not active (save CPU).
+     * The cache must keep the values the labels show, or the next enter skips stale labels. */
     if (current_power_state != UI_POWER_STATE_SOFT_POWERSAVE && powersave_cache.initialized) {
-        /* Just cache the values for when powersave becomes active */
-        powersave_cache.hr_state = hr_state;
-        powersave_cache.csc_state = csc_state;
-        powersave_cache.hr_value = hr_value;
-        powersave_cache.csc_value = csc_value;
-        powersave_cache.fan_active_count = fan_active_count;
-        powersave_cache.fan_total_count = fan_total_count;
         return;
     }
 

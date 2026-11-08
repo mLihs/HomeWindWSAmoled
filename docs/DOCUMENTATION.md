@@ -1,6 +1,6 @@
 ---
 title: HomeWindWSAmoled Library Documentation
-version: 1.6.0
+version: 1.6.1
 library_name: HomeWindWSAmoled
 platform: ESP32
 framework: Arduino
@@ -21,7 +21,7 @@ features:
   - Touch Screen Support
   - QR Code Settings
   - Customizable Breathing Animation
-api_version: 1.6.0
+api_version: 1.6.1
 license: MIT
 author: HomeWind Project
 ---
@@ -530,7 +530,8 @@ set_state_active();               // Force active state
 
 ### Animation
 ```c
-#define MODAL_ANIMATION_TIME_MS       300  // Modal overlay animation duration
+#define MODAL_ANIMATION_TIME_MS       180  // Modal overlay animation duration
+#define MODAL_SLIDE_DISTANCE          60   // Modal overlay slide distance (px)
 #define FAN_TOGGLE_ANIMATION_TIME_MS  300  // Fan toggle color transition duration
 #define FAN_ANIM_RESOLUTION           1024 // Fan animation interpolation resolution
 #define BREATHING_ANIM_TIME           6000  // Breathing animation cycle (6 seconds)
@@ -827,7 +828,7 @@ All widgets follow this pattern:
 
 #### Adjusting Animation
 - Change timing constants:
-  - `MODAL_ANIMATION_TIME_MS` (default: 300ms) - Settings modal slide animation
+  - `MODAL_ANIMATION_TIME_MS` (default: 180ms) and `MODAL_SLIDE_DISTANCE` (default: 60px) - Settings modal slide animation
   - `FAN_TOGGLE_ANIMATION_TIME_MS` (default: 300ms) - Fan toggle color transition
   - `BREATHING_ANIM_TIME` - Power save breathing animation
 - Modify easing function in animation setup

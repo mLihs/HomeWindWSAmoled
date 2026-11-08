@@ -22,7 +22,7 @@
 #define LCD_TE_PROBE_MS                100   // ~6 TE pulses at 60 Hz
 #define LCD_TE_MIN_PULSES              3     // below this the board is V1
 
-#define EXAMPLE_LVGL_BUF_HEIGHT        (EXAMPLE_LCD_V_RES / 8)   /* 57 lines, ~64 KB total */
+#define EXAMPLE_LVGL_BUF_HEIGHT        (EXAMPLE_LCD_V_RES / 16)  /* 28 lines, ~31 KB total */
 
 // LVGL Timing Configuration (optimized for CPU efficiency)
 // Tick period: 5ms = 200Hz (sufficient for smooth animations, reduces CPU overhead)

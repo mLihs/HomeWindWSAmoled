@@ -12,6 +12,9 @@ static SemaphoreHandle_t lvgl_mux = NULL; //mutex semaphores
 #define SH8601_ID 0x86
 #define CO5300_ID 0xff
 
+// Touch read period for this indev only; the global LV_INDEV_DEF_READ_PERIOD stays as configured.
+#define TOUCH_READ_PERIOD_MS 20
+
 
 
 static const char *TAG = "lcd_bsp";
@@ -136,7 +139,7 @@ void lcd_lvgl_Init(void)
                                                                EXAMPLE_PIN_NUM_LCD_DATA1,
                                                                EXAMPLE_PIN_NUM_LCD_DATA2,
                                                                EXAMPLE_PIN_NUM_LCD_DATA3,
-                                                               EXAMPLE_LCD_H_RES * EXAMPLE_LCD_V_RES * LCD_BIT_PER_PIXEL / 8);
+                                                               EXAMPLE_LCD_H_RES * EXAMPLE_LVGL_BUF_HEIGHT * LCD_BIT_PER_PIXEL / 8);
   ESP_ERROR_CHECK_WITHOUT_ABORT(spi_bus_initialize(LCD_HOST, &buscfg, SPI_DMA_CH_AUTO));
   esp_lcd_panel_io_handle_t io_handle = NULL;
   esp_lcd_panel_handle_t panel_handle = NULL;
@@ -186,7 +189,8 @@ void lcd_lvgl_Init(void)
   indev_drv.type = LV_INDEV_TYPE_POINTER;
   indev_drv.disp = disp;
   indev_drv.read_cb = example_lvgl_touch_cb;
-  lv_indev_drv_register(&indev_drv);
+  lv_indev_t *indev = lv_indev_drv_register(&indev_drv);
+  if (indev) lv_timer_set_period(indev->driver->read_timer, TOUCH_READ_PERIOD_MS);
 
   const esp_timer_create_args_t lvgl_tick_timer_args = 
   {
@@ -288,26 +292,11 @@ void example_lvgl_rounder_cb(struct _lv_disp_drv_t *disp_drv, lv_area_t *area)
   area->x2 = ((x2 >> 1) << 1) + 1;
   area->y2 = ((y2 >> 1) << 1) + 1;
 }
-// Touch polling rate limiting (reduces I2C overhead)
-// With 5ms LVGL tick, this means touch is polled every ~15ms (≈66Hz) - more responsive
-#define TOUCH_POLL_SKIP_COUNT 2  // Poll every N+1 LVGL ticks
-
 static void example_lvgl_touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data)
 {
-  static uint8_t poll_counter = 0;
   static uint16_t last_x = 0, last_y = 0;
   static lv_indev_state_t last_state = LV_INDEV_STATE_RELEASED;
-  
-  // Rate limiting: only poll I2C every N ticks
-  if (++poll_counter <= TOUCH_POLL_SKIP_COUNT) {
-    // Return cached values
-    data->point.x = last_x;
-    data->point.y = last_y;
-    data->state = last_state;
-    return;
-  }
-  poll_counter = 0;
-  
+
   // Actually poll touch controller
   uint16_t tp_x, tp_y;
   uint8_t win = getTouch(&tp_x, &tp_y);

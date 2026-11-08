@@ -14,7 +14,7 @@ Bei großen Displays (z. B. 480×320 oder höher) können ein oder beide Frame
 
 **In dieser Bibliothek (HomeWindWSAmoled):**
 
-- Es werden **partielle** Double-Buffer verwendet (`EXAMPLE_LVGL_BUF_HEIGHT = V_RES/4`, also 114 Zeilen), keine vollen Framebuffer.
+- Es werden **partielle** Double-Buffer verwendet (`EXAMPLE_LVGL_BUF_HEIGHT = V_RES/16`, also 28 Zeilen, 2 × 15.680 B), keine vollen Framebuffer.
 - Die Buffer werden in `lcd_bsp.c` mit `heap_caps_malloc(..., MALLOC_CAP_DMA)` allokiert, weil der esp_lcd SPI/QSPI-Flush per DMA aus dem Buffer liest.
 - **Aktuell:** Display-Buffer bleiben im **internen RAM** (DMA-Pflicht für diesen Treiber).
 - **Möglich bei Refactor:** Voll-Framebuffer im PSRAM + anderer Flush-Weg (z. B. Copy in kleinen DMA-Blöcken oder anderer Controller-Mode) – dann 80 MHz PSRAM beachten.
