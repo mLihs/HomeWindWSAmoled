@@ -4,6 +4,40 @@ All notable changes to the HomeWindWSAmoled library are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.7.0] - 2026-11-21
+
+Touch UI redesign (Homewind `Refactoring/TOUCH_UI_CONCEPT_V2.md`, Figma "Homewind Touch").
+
+### Added
+- **Main screen layout:** status bar (APP and Trainer badges, settings gear) and HR card in one pink block rounded at the bottom; a tap anywhere on it opens the QR modal. Then power row, cadence row and fan control field in one flex column with a 2 px black margin all round (case bezel). Hidden rows give their height to the HR card (140, 204 or 268 px).
+- **Power and cadence rows:** `homewind_set_power_row(state, name, watts)` and `homewind_set_cadence_row(state, name, rpm)` with `row_state_t` (`ROW_HIDDEN`, `ROW_DISCONNECTED`, `ROW_ACTIVE`). Each row shows the source name (long names are cut off at the right edge) and "210 W" / "85 RPM", or "Disconnected". Power is violet, cadence blue. Units in capitals ("RPM", "BPM").
+- **Status badges:** `homewind_set_badges(app, trainer)` with `badge_state_t` (`BADGE_HIDDEN`, `BADGE_GREY`, `BADGE_ORANGE`, `BADGE_GREEN`). Grey badges have white text. 28 px high, on the main screen and in the screensaver.
+- **Fan control field:** minus | mode, speed and fan dots | plus. `homewind_set_fan_control(mode, target_on, pct)` sets the mode in effect (`fan_mode_t`) and the speed in percent ("63", no "%", green while the fans run). `homewind_set_fan_control_callbacks(shift, mode)`: plus/minus call `shift(-1)` / `shift(+1)` on a tap (pressed background `COLOR_CONTROL_PRESSED` #2F2F42), the mode field calls `mode()` on a 700 ms long press (same pressed background while held). Callbacks run in the LVGL task with the lock held; queue the work.
+- **Screensaver:** badges at the top, then a grid of HR alone, power and cadence side by side (108 px slots, Figma 90 without units), fans; rows 24 px apart, the block centred below the badges (Figma 1251:6912, 6946, 6978). Icons in icon font 56 as before (cadence in `COLOR_CADENCE_LIGHT`), values in Inter Bold 24 with units ("170 BPM", "295 W", "85 RPM", "60 %"). A disconnected source shows its grey icon with "--"; the fan icon is green while the fans run, white at target 0. Unconfigured sources are hidden, and empty rows close up.
+- **Panel off:** after 10 min in the screensaver without activity the panel is switched off (`UI_POWER_STATE_PANEL_OFF`, DISPOFF and brightness 0) against burn-in. `homewind_powersave_wake()` restarts the timeout and switches the panel back on with the screensaver; call it for non-touch activity (sensor data, app connects, web UI). `lcd_set_display_on(bool)` in `lcd_bsp.h`.
+- **Icon font:** plus, minus, bolt and gear glyphs in `FanFont.ttf` (`fonts/add_icons.py`), icon font 36 now covers "1"–":", icon font 56 adds the bolt "9". Inter Bold 14 and 24 cover printable ASCII except `$ ( ) [ ] ` { } |` (those would grow the line height and move the layout), so names from BLE advertising such as "HRM-Pro:123456" show ":", "_", "+", "#", "'", "&" and "." instead of placeholder boxes.
+- **Colours:** `COLOR_POWER`, `COLOR_POWER_DARK`, `COLOR_CADENCE`, `COLOR_CADENCE_DARK`, `COLOR_CADENCE_LIGHT`, `COLOR_QR_AREA`, `COLOR_GREEN`, `COLOR_WARNING`, `COLOR_BADGE_GREY`, `COLOR_CONTROL_PRESSED`, `COLOR_ACCENT_PRESSED`.
+
+### Changed
+- **Touch while dimmed or in the screensaver only wakes the display:** the press that wakes it does not reach any control.
+- **HR card** (Figma): the full heart, the heart with "!" while disconnected. Connected: value and heart, sensor name below. Disconnected: sensor name above "Disconnected" instead of "--", the texts 8 px lower than in Figma. All texts in Inter Bold 24 as before; the name is one line, centred if it fits, otherwise left-aligned and cut off at the right edge. Not configured: "Add Sensors".
+- **Sensor names** up to 63 characters (before 31) for the HR card and the rows; longer names are cut off on screen, not in the buffer.
+- **Text positions** follow Figma's baselines, not its text boxes: the generated fonts have tight line heights (Bold 14: 14 px, Bold 24: 23 px), so the label positions and paddings are corrected for that.
+- **CSC API** drives the cadence row. **Fan API** (`homewind_set_fan*`) drives the four dots in the fan control field (grey empty, white configured, orange error, green on).
+- **QR modal:** full screen, QR on a dark field, "Scan to Setup Homewind", pink Close button (pressed #BD0C50). **Boot/AP screen:** heart icon, AP title "Wifisetup", content centred in the top 369 px as in Figma.
+- `apply_transparent_container_style()` also clears `CLICKABLE` and `SCROLLABLE`, so a touch on a container reaches the control or screen below.
+- **Examples** leave the boot screen (`homewind_show_main_screen()`, `powersave_unlock()` under the LVGL lock); since 1.5.9 they stayed on "Warming Up" and never dimmed. Timeouts in their output corrected (8 s dimmed, screensaver 20 s later).
+
+### Deprecated
+- `homewind_set_csc_power()`: shows the power row with the cadence row's name; use `homewind_set_power_row()`.
+- `homewind_set_fan_toggle_callback()`: the main screen has no fan toggles; the callback is stored and never called.
+
+### Removed
+- `update_powersave_icons()`, replaced by `update_powersave_view()` (internal, filled by `homewind_ui.c`).
+- Colours `COLOR_CSC`, `COLOR_TEXT_DARK`, `COLOR_SUCCESS_ICON`, `COLOR_FAN_ACTIVE_ON`.
+
+---
+
 ## [1.6.1] - 2026-11-08
 
 ### Changed

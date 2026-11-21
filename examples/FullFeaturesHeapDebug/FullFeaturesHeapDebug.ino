@@ -96,6 +96,11 @@ void setup() {
 
   /* Init library first (its printf/qmi8658_log output appears here). */
   homewind_init();
+  if (lcd_lvgl_lock(-1)) {   /* leave the boot screen, start powersave */
+    homewind_show_main_screen();
+    powersave_unlock();
+    lcd_lvgl_unlock();
+  }
   homewind_set_qr_code_url("https://homewind.example.com/setup");
 
   homewind_set_hr(HR_STATE_INACTIVE, "TickrFit", 0);

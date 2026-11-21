@@ -25,6 +25,13 @@ void setup() {
   
   // Initialize the library
   homewind_init();
+
+  // Leave the "Warming Up" boot screen; powersave stays off until unlocked
+  if (lcd_lvgl_lock(-1)) {
+    homewind_show_main_screen();
+    powersave_unlock();
+    lcd_lvgl_unlock();
+  }
   
   // Customize breathing animation curves
   // Set inhale to cubic ease-in (smooth acceleration)
@@ -46,8 +53,9 @@ void setup() {
   homewind_set_fan_state(1, FAN_STATE_ACTIVE);
   
   Serial.println("\nPower Save Behavior:");
-  Serial.println("- After 10s inactivity: DIMMED state");
-  Serial.println("- After 12s inactivity: SOFT_POWERSAVE (breathing animation)");
+  Serial.println("- After 8s inactivity: DIMMED state");
+  Serial.println("- 20s later: SOFT_POWERSAVE (screensaver, breathing animation)");
+  Serial.println("- 10 min in the screensaver: panel off");
   Serial.println("- Touch screen to return to ACTIVE");
   Serial.println("\nTry different breathing curves by uncommenting lines above!");
 }

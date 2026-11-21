@@ -1,6 +1,6 @@
 ---
 title: HomeWindWSAmoled Library Documentation
-version: 1.6.1
+version: 1.7.0
 library_name: HomeWindWSAmoled
 platform: ESP32
 framework: Arduino
@@ -14,14 +14,15 @@ hardware:
   - display: SH8601 AMOLED (280×456 pixels, QSPI)
   - touch: FT3168 (I2C)
 features:
-  - HR Widget
-  - CSC Widget
-  - Fan Widget (4 fans)
-  - Power Save Modes
+  - Status Badges (APP, Trainer)
+  - HR Card
+  - Power and Cadence Rows
+  - Fan Control (plus/minus, mode, speed, 4 fan dots)
+  - Power Save Modes (screensaver, panel off)
   - Touch Screen Support
   - QR Code Settings
   - Customizable Breathing Animation
-api_version: 1.6.1
+api_version: 1.7.0
 license: MIT
 author: HomeWind Project
 ---
@@ -48,11 +49,12 @@ author: HomeWind Project
 HomeWindWSAmoled is an Arduino library for ESP32-based fitness/cycling devices featuring AMOLED display support, LVGL graphics, and intelligent power management.
 
 ### Key Features
-- **HR Widget**: Displays heart rate value and sensor name with connected/disconnected states
-- **CSC Widget**: Shows cadence sensor state and RPM data with three states (Inactive, Error, Active)
-- **Fan Widget**: 2x2 grid layout displaying up to 4 fans, each with three states and toggle on/off functionality
+- **Status Bar**: pink, one block with the HR card; "APP" and "Trainer" badges (grey with white text, orange, green) and the settings gear
+- **HR Card**: Heart rate value and sensor name, or sensor name and "Disconnected", or "Add Sensors"; grows when rows are hidden
+- **Power and Cadence Rows**: Source name and "210 W" / "85 RPM", or "Disconnected"; hidden without a source
+- **Fan Control**: Minus | mode, fan speed and four fan dots | plus. Plus/minus shift the HR range, a long press on the mode field changes the mode (the application decides)
 - **Settings Modal**: QR code-based device setup with animated overlay
-- **Power Save Modes**: Three power states (Active, Dimmed, Soft Powersave) with automatic transitions
+- **Power Save Modes**: Active, Dimmed, Screensaver (soft powersave) and Panel Off with automatic transitions
 - **Touch Screen Support**: Full touch interaction with FT3168 controller
 - **Customizable Breathing Animation**: Configurable easing curves for power save breathing effect
 
@@ -100,18 +102,22 @@ lib_extra_dirs = path/to/HomeWindWSAmoled
 ### Component Hierarchy
 ```
 scr_boot (Boot Screen) - "Warming Up" during init
-scr_ap (AP Screen) - "Wifisetup Mode" when captive portal active
+scr_ap (AP Screen) - "Wifisetup" when captive portal active
 scr_main (Main Screen)
-├── stack (Flex Column Container)
-│   ├── card_hr (HR Widget)
-│   ├── card_csc (CSC Widget)
-│   └── fan_container (Fan Widget - 2x2 Grid)
-├── btn_settings (Settings Button)
-└── settings_overlay (Modal Overlay)
-    ├── settings_card (QR Code Container)
-    │   ├── qr_code_widget
-    │   └── lbl_scan (Text Label)
-    └── btn_close (Close Button)
+├── stack (Flex Column, gap 8, 2 px margin all round)
+│   ├── top (pink block, flex grow, rounded at the bottom; a tap opens the modal)
+│   │   ├── status bar (44 px: APP and Trainer badges 28 px high, settings gear)
+│   │   └── card_hr (HR card, flex grow: 140, 204 or 268 px)
+│   ├── power row (56 px, hidden without a source)
+│   ├── cadence row (56 px, hidden without a source)
+│   └── fan control (132 px: minus | mode, speed, dots | plus)
+└── settings_overlay (full-screen modal)
+    ├── QR area (244×244) with qr_code_widget
+    ├── "Scan to Setup Homewind"
+    └── Close button (pressed #BD0C50)
+scr_powersave (Screensaver)
+├── badges
+└── grid: HR | power, cadence (side by side) | fans
 ```
 
 ### Threading Model
@@ -128,8 +134,9 @@ scr_main (Main Screen)
 5. App switches to Main or AP screen via `homewind_show_main_screen()` / `homewind_show_ap_screen()`
 
 ### Boot and AP Screens (v1.5.9+)
+- **Layout**: heart, title (Inter Bold 24) and text (Inter Bold 14, 190 px wide) centred in the top 369 px.
 - **Boot Screen**: Shown during device init ("Warming Up", heart icon). Use `powersave_lock()` before init, `powersave_unlock()` when ready.
-- **AP Screen**: Shown when WiFi captive portal is active ("Wifisetup Mode"). Call `homewind_show_ap_screen()` when entering AP mode, `homewind_show_main_screen()` when switching back to STA.
+- **AP Screen**: Shown when WiFi captive portal is active ("Wifisetup"). Call `homewind_show_ap_screen()` when entering AP mode, `homewind_show_main_screen()` when switching back to STA.
 
 **Convenience Function:**
 ```cpp
@@ -164,146 +171,90 @@ Creates and loads the main screen with all widgets. Called automatically by `hom
 
 ### HR Widget Functions
 
-#### `void homewind_set_hr_state(hr_state_t state, [const char* sensor_name], [uint16_t value])`
-Sets the HR widget state, sensor name, and heart rate value. The `sensor_name` and `value` parameters are optional.
+#### `void homewind_set_hr(hr_state_t state, const char* sensor_name, uint16_t value)`
+Sets the HR widget state, sensor name and heart rate value.
 
 **Parameters:**
-- `state` (required): One of `HR_NOT_CONFIGURATED`, `HR_STATE_INACTIVE`, or `HR_STATE_ACTIVE` (since v1.5.8)
-- `sensor_name` (optional): Sensor name string (max 31 characters, null-terminated). Omit to keep current name unchanged.
-- `value` (optional): Heart rate value (0-65535). Omit to keep current value unchanged.
-
-**Function Signature:**
-```c
-void homewind_set_hr_state(hr_state_t state, ...);
-```
+- `state`: one of `HR_NOT_CONFIGURATED`, `HR_STATE_INACTIVE` or `HR_STATE_ACTIVE`
+- `sensor_name`: up to 63 characters, `NULL` keeps the current name. Longer names are cut off on screen.
+- `value`: heart rate (0-65535)
 
 **Examples:**
 ```cpp
-// Set state only (name and value unchanged)
-homewind_set_hr_state(HR_NOT_CONFIGURATED);
-
-// Set state with sensor name (value unchanged)
-homewind_set_hr_state(HR_STATE_INACTIVE, "TickrFit");
-
-// Set all parameters
-homewind_set_hr_state(HR_STATE_ACTIVE, "TickrFit", 129);
+homewind_set_hr(HR_STATE_INACTIVE, "TickrFit", 0);
+homewind_set_hr(HR_STATE_ACTIVE, "TickrFit", 129);
 ```
 
-#### `void homewind_set_hr_state_simple(hr_state_t state)`
-Convenience function to set only the HR widget state without changing value or sensor name.
+#### `void homewind_set_hr_state(hr_state_t state)`
+Sets only the HR widget state; value and sensor name stay. `homewind_set_hr_state_simple(state)` is the same.
 
 **Function Signature:**
 ```c
 void homewind_set_hr_state_simple(hr_state_t state);
 ```
 
-### CSC Widget Functions
+### Power and Cadence Rows (since v1.7.0)
 
-#### `void homewind_set_csc_state(csc_state_t state, const char* sensor_name, uint16_t cadence)`
-Sets the CSC widget state, sensor name, and cadence value.
-
-**Function Signature:**
 ```c
-void homewind_set_csc_state(csc_state_t state, const char* sensor_name, uint16_t cadence);
+void homewind_set_power_row(row_state_t state, const char* name, uint16_t watts);
+void homewind_set_cadence_row(row_state_t state, const char* name, uint16_t rpm);
 ```
 
-**Parameters:**
-- `state`: One of `CSC_NOT_CONFIGURATED`, `CSC_STATE_INACTIVE`, or `CSC_STATE_ACTIVE` (since v1.5.8)
-- `sensor_name`: Sensor name string (max 31 characters). Pass `NULL` to keep current name unchanged.
-- `cadence`: Cadence value in RPM. Pass `0` to keep current value unchanged.
+- `state`: `ROW_HIDDEN` (no source; the HR card takes the height), `ROW_DISCONNECTED` (dark row, "Disconnected"), `ROW_ACTIVE` (coloured row with the value).
+- `name`: source name, `NULL` keeps the current one. Names wider than the row are cut off at the right edge.
+- `watts` / `rpm`: shown as "210 W" / "85 RPM" while `ROW_ACTIVE`.
 
-**Examples:**
+Only changed parts are redrawn (state, name, value).
+
 ```cpp
-// Set to active state with cadence and sensor name
-homewind_set_csc_state(CSC_STATE_ACTIVE, "Ridesense", 100);
-
-// Set to error state (keep current sensor name and cadence)
-homewind_set_csc_state(CSC_STATE_ERROR, NULL, 0);
-
-// Update only cadence, keep state and sensor name
-homewind_set_csc_state(CSC_STATE_ACTIVE, NULL, 120);
+homewind_set_power_row(ROW_ACTIVE, "Assioma Duo", 210);
+homewind_set_cadence_row(ROW_DISCONNECTED, "Ridesense", 0);
+homewind_set_power_row(ROW_HIDDEN, NULL, 0);
 ```
 
-#### `void homewind_set_csc_state_simple(csc_state_t state)`
-Convenience function to set only the CSC widget state.
+**CSC API:** `homewind_set_csc(state, name, cadence)`, `homewind_set_csc_state(state)` and `homewind_set_csc_cadence(cadence)` drive the cadence row (`CSC_NOT_CONFIGURATED` = hidden, `CSC_STATE_INACTIVE` = disconnected). `homewind_set_csc_power(watts)` is deprecated: `watts >= 0` shows the power row with the cadence row's name, `< 0` hides it.
 
-**Function Signature:**
+### Status Badges (since v1.7.0)
+
 ```c
-void homewind_set_csc_state_simple(csc_state_t state);
+void homewind_set_badges(badge_state_t app, badge_state_t trainer);
 ```
 
-### Fan Widget Functions
+`BADGE_HIDDEN`, `BADGE_GREY` (set up, not connected yet), `BADGE_ORANGE` (was connected, now lost), `BADGE_GREEN` (connected). The screensaver shows the same badges.
 
-#### `void homewind_set_fan_state(uint8_t fan_index, fan_state_t state, bool is_on)`
-Sets the state and toggle status of a specific fan in the fan widget. Fans with ACTIVE or ERROR states can be toggled on/off by touching them.
+### Fan Control (since v1.7.0)
 
-**Function Signature:**
 ```c
+void homewind_set_fan_control(fan_mode_t mode, bool target_on, uint8_t target_pct);
+void homewind_set_fan(uint8_t fan_index, fan_state_t state, bool is_on);
 void homewind_set_fan_state(uint8_t fan_index, fan_state_t state);
-void homewind_set_fan_state(uint8_t fan_index, fan_state_t state, bool is_on);
+void homewind_set_fan_toggle(uint8_t fan_index, bool is_on);
+void homewind_set_fan_control_callbacks(hr_shift_callback_t shift, fan_mode_callback_t mode);
 ```
 
-**Parameters:**
-- `fan_index`: Fan index (0-3, where 0 = Fan 1, 1 = Fan 2, etc.)
-- `state`: One of `FAN_STATE_NOT_CONFIGURATED`, `FAN_STATE_INACTIVE`, `FAN_STATE_ERROR`, or `FAN_STATE_ACTIVE`
-- `is_on`: Toggle state (optional, defaults to `false`). Only applies to INACTIVE, ACTIVE and ERROR states.
+- `homewind_set_fan_control()`: centre field. `mode` is the mode in effect (`FAN_MODE_PURE`, `FAN_MODE_SMART`, `FAN_MODE_HYBRID`), the speed in percent reads "63" (no "%", green while `target_on` and the speed is above 0) and "0" while off.
+- `homewind_set_fan*()`: one of the four dots below the speed (see [Fan Dots](#fan-dots)).
+- `homewind_set_fan_control_callbacks()`:
+  - `shift(int8_t steps)`: a tap on plus calls `shift(-1)` (lower the HR range, more wind), minus calls `shift(+1)`.
+  - `mode(void)`: a 700 ms long press on the mode field. The application picks the next mode and reports it back with `homewind_set_fan_control()`.
+  - Both run in the LVGL task with the LVGL lock held. Only queue the work there (for example an atomic flag) and apply it in your own task.
+  - A press that wakes the display (dimmed or screensaver) does not reach the controls.
 
-**Examples:**
 ```cpp
-// Set Fan 1 (index 0) to active, OFF (default)
-homewind_set_fan_state(0, FAN_STATE_ACTIVE);
+static std::atomic<int8_t> s_shift{0};
+static std::atomic<bool> s_mode{false};
 
-// Set Fan 2 (index 1) to active, ON
-homewind_set_fan_state(1, FAN_STATE_ACTIVE, true);
-
-// Set Fan 3 (index 2) to error, OFF
-homewind_set_fan_state(2, FAN_STATE_ERROR, false);
-
-// Set Fan 4 (index 3) to error, ON
-homewind_set_fan_state(3, FAN_STATE_ERROR, true);
-
-// Set Fan 1 to not configured (not toggleable, is_on parameter ignored)
-homewind_set_fan_state(0, FAN_STATE_NOT_CONFIGURATED);
+homewind_set_fan_control_callbacks(
+    [](int8_t steps) { s_shift += steps; },
+    []() { s_mode = true; });
 ```
 
-**Note:** The function uses a convenience macro that allows calling with 2 or 3 arguments. If `is_on` is omitted, it defaults to `false`.
-
-#### `void homewind_set_fan_toggle_callback(fan_toggle_callback_t callback)`
-Registers a callback function that is called when a user toggles a fan item by touching it.
-
-**Function Signature:**
-```c
-typedef void (*fan_toggle_callback_t)(uint8_t fan_index, bool is_on);
-void homewind_set_fan_toggle_callback(fan_toggle_callback_t callback);
-```
-
-**Parameters:**
-- `callback`: Function pointer to callback that receives `fan_index` and `is_on` (true/false)
-
-**Callback Parameters:**
-- `fan_index`: Index of the fan that was toggled (0-3)
-- `is_on`: New toggle state (true = on, false = off)
-
-**Example:**
-```cpp
-// Register callback to handle fan toggles
-homewind_set_fan_toggle_callback([](uint8_t fan_index, bool is_on) {
-    Serial.print("Fan ");
-    Serial.print(fan_index + 1);
-    Serial.print(" toggled to: ");
-    Serial.println(is_on ? "ON" : "OFF");
-    
-    // Control actual fan hardware here
-    control_fan_hardware(fan_index, is_on);
-});
-```
-
-**Note:** Only ACTIVE and ERROR state fans can be toggled. INACTIVE fans ignore touch events.
+`homewind_set_fan_toggle_callback()` is deprecated since 1.7.0: the main screen has no fan toggles, the callback is stored and never called.
 
 ### Settings Modal Functions
 
 #### `void homewind_show_ap_screen(void)` / `void homewind_show_main_screen(void)`
-Switch between AP screen ("Wifisetup Mode") and main screen. Call from DisplayManager or app when WiFi mode changes (captive portal vs normal).
+Switch between AP screen ("Wifisetup") and main screen. Call from DisplayManager or app when WiFi mode changes (captive portal vs normal).
 
 #### `void homewind_set_qr_code_url(const char* url)`
 Updates the QR code URL in the settings modal.
@@ -331,6 +282,9 @@ Lock/unlock powersave. When locked (Boot or AP screen active), dimming and soft 
 
 #### `void on_user_activity(void)`
 Reset inactivity timer and return to active state. Called automatically on touch.
+
+#### `void homewind_powersave_wake(void)` (since v1.7.0)
+Activity that is not a touch: a sensor connects or sends data, an app connects, a web UI change. Restarts the 10 min panel-off timeout; a switched-off panel comes back on with the screensaver. The main screen and the dim timeout stay as they are. Call under the LVGL lock; cheap enough for every data update (Homewind calls it at most once per second).
 
 #### `void set_state_active(void)`
 Manually set power state to active.
@@ -382,67 +336,38 @@ set_breathing_exhale_curve(BREATHING_EASE_SINE_OUT);
 ### HR Widget States (since v1.5.8)
 
 #### `HR_STATE_ACTIVE`
-- **Visual**: Pink/red card background, white heart icon (U+31), HR value displayed
-- **Labels**: HR value (large number) / Sensor name (e.g., "TickrFit")
+- **Visual**: Pink/red card background, HR value (Inter Black 64) and heart icon (U+31)
+- **Labels**: HR value / sensor name below in Inter Bold 24, one line: centred if it fits, otherwise left-aligned and cut off
 - **Use Case**: HR sensor connected and providing data
 
 #### `HR_STATE_INACTIVE`
-- **Visual**: Pink/red card background, white disconnected icon (U+34), no HR value
-- **Labels**: Disconnected icon / "Not Connected"
-- **Use Case**: HR sensor configured but not connected
+- **Visual**: Pink/red card, disconnected heart icon with "!" (U+34)
+- **Labels**: sensor name (as above) above "Disconnected", both Inter Bold 24, 8 px below the Figma position
+- **Use Case**: HR sensor configured but not connected, or no value yet (value 0)
 
 #### `HR_NOT_CONFIGURATED`
-- **Visual**: Pink/red card background, white disconnected icon (U+34), no HR value
-- **Labels**: Disconnected icon / "Not Configurated"
+- **Visual**: Pink/red card, heart icon (U+31)
+- **Labels**: "Add Sensors" (Inter Bold 24)
 - **Use Case**: HR sensor not configured
 
-### CSC Widget States (since v1.5.8)
+### Row States (since v1.7.0)
 
-#### `CSC_NOT_CONFIGURATED`
-- **Visual**: Light blue background (50% opacity), white circle with blue "!" icon
-- **Labels**: "CSC Sensor" / "Not Configurated"
-- **Use Case**: Sensor not configured
+| State | Power row | Cadence row |
+|---|---|---|
+| `ROW_ACTIVE` | violet `COLOR_POWER`, "210 W" | blue `COLOR_CADENCE`, "85 RPM" |
+| `ROW_DISCONNECTED` | dark `COLOR_POWER_DARK`, "Disconnected" | dark `COLOR_CADENCE_DARK`, "Disconnected" |
+| `ROW_HIDDEN` | hidden | hidden |
 
-#### `CSC_STATE_INACTIVE`
-- **Visual**: Blue background, white circle with blue "!" icon
-- **Labels**: Sensor name / "Not Connected"
-- **Use Case**: Sensor configured but not connected
+Both rows show the source name (Inter Bold 14, cut off at the right edge) above the value; the icon (bolt, crank) sits in a white circle.
 
-#### `CSC_STATE_ACTIVE`
-- **Visual**: Blue background, checkmark icon (no circle)
-- **Labels**: Sensor name / "XXX RPM"
-- **Use Case**: Sensor connected and providing data
+### Fan Dots
 
-### Fan Widget States
-
-The Fan widget supports toggle functionality. Fans in INACTIVE, ACTIVE or ERROR states can be toggled on/off by touching them. NOT_CONFIGURATED fans cannot be toggled.
-
-#### `FAN_STATE_NOT_CONFIGURATED`
-- **Visual**: Gray card (50% opacity)
-- **Content**: No icon, no label (completely empty card)
-- **Toggle**: Not toggleable (touch events ignored)
-- **Use Case**: Fan slot not configured
-
-#### `FAN_STATE_INACTIVE` (off, clickable)
-- **Visual**: White card (80% opacity), green circle (no checkmark), dark text
-- **Layout**: Icon left, text right
-- **Content**: Fan name visible (e.g., "Fan 1")
-- **Toggle**: Can be toggled by touching
-- **Use Case**: Fan active but currently off
-
-#### `FAN_STATE_ERROR` (no icon)
-- **Visual**: Pink/red when on; white card when off. No icon in either case.
-- **Content**: Fan name visible
-- **Toggle**: Can be toggled by touching
-- **Use Case**: Fan error (e.g. not connected)
-
-#### `FAN_STATE_ACTIVE` (on, no checkmark)
-- **Visual**: Green background (#06BB60), no icon/checkmark, white text
-- **Content**: Fan name visible (e.g., "Fan 1")
-- **Toggle**: Can be toggled by touching
-- **Use Case**: Fan active and currently on
-
-**Toggle Animation**: When toggling between on/off states, a smooth 300ms color animation (ease-in-out) transitions the background color.
+| State | Dot |
+|---|---|
+| `FAN_STATE_NOT_CONFIGURATED` | grey (slot empty) |
+| `FAN_STATE_INACTIVE` | white (configured, no info yet) |
+| `FAN_STATE_ERROR` | orange `COLOR_WARNING` |
+| `FAN_STATE_ACTIVE` | green `COLOR_GREEN` while `is_on`, else white |
 
 ---
 
@@ -459,22 +384,25 @@ The library automatically manages power states based on user inactivity:
 
 2. **DIMMED**
    - Reduced brightness (120, ~47%)
-   - Activated after 10 seconds of inactivity
-   - Transparent overlay for touch detection
+   - Activated after 8 seconds without touch
 
-3. **SOFT_POWERSAVE**
-   - Minimal brightness with breathing animation (80-120 range)
-   - Activated after 12 seconds of inactivity (2s after dimmed)
-   - Pure black background (AMOLED safe)
-   - Animated status area with sensor icons
-   - Breathing animation: 6-second cycle
+3. **SOFT_POWERSAVE** (screensaver)
+   - Breathing brightness (80-120, 6-second cycle)
+   - Activated 20 seconds after dimming
+   - Black background: badges at the top, then a grid of HR alone, power and cadence side by side (108 px slots), fans; rows 24 px apart, the block centred below the badges (Figma 1251:6912, 6946, 6978). Icon 56 above the value in Inter Bold 24 with unit ("170 BPM", "295 W", "85 RPM", "60 %"). A disconnected source shows its grey icon with "--"; unconfigured sources are hidden, empty rows close up.
+
+4. **PANEL_OFF** (since v1.7.0)
+   - Screensaver with the panel switched off (DISPOFF, brightness 0) against burn-in
+   - Activated after 10 minutes in the screensaver without activity. Touch and `homewind_powersave_wake()` count as activity.
+   - `homewind_powersave_wake()` switches the panel back on with the screensaver; a touch returns to ACTIVE.
 
 ### Automatic Transitions
 
 ```
-ACTIVE → (10s inactivity) → DIMMED → (2s more inactivity) → SOFT_POWERSAVE
-  ↑                                                              ↓
-  └────────────────── (touch detected) ────────────────────────┘
+ACTIVE → (8 s) → DIMMED → (20 s) → SOFT_POWERSAVE → (10 min without activity) → PANEL_OFF
+  ↑                                     ↑                                           │
+  │                                     └──── homewind_powersave_wake() ────────────┤
+  └──────────────────────────── touch (from any state) ────────────────────────────┘
 ```
 
 ### Customization
@@ -495,6 +423,7 @@ set_state_active();               // Force active state
 **Touch Detection:**
 - Touch events automatically call `on_user_activity()`
 - Returns to ACTIVE state immediately
+- The touch that wakes the display only wakes it; controls ignore that press (since v1.7.0)
 - Hides settings overlay if open
 
 ---
@@ -503,55 +432,69 @@ set_state_active();               // Force active state
 
 ### Colors
 ```c
-#define COLOR_BG_APP           0xEEF2FA  // Background: Light gray-blue
-#define COLOR_HR_CARD          0xF00F66  // HR Card: Pink/Red
-#define COLOR_CSC_ACTIVE       0x25ADD3  // CSC Active/Error: Blue
-#define COLOR_CSC_INACTIVE      0x25ADD3  // CSC Inactive: Blue (50% opacity)
-#define COLOR_FAN_CARD         0xFFFFFF  // Fan Card: White (80% opacity)
-#define COLOR_FAN_INACTIVE     0xFFFFFF  // Fan Inactive: White (50% opacity)
-#define COLOR_FAN_UNCONFIGURED 0xAFBDD4  // Fan Unconfigured: Light blue-gray
-#define COLOR_FAN_ACTIVE_ON    0x06BB60  // Fan Active On: Green background
-#define COLOR_FAN_ERROR_ON     0xF00F66  // Fan Error On: Red/pink background
-#define COLOR_MODAL_BG         0x000000  // Modal Background: Black (90% opacity)
-#define COLOR_MODAL_CARD       0x1E1E2A  // Modal Card: Dark blue-gray
-#define COLOR_BUTTON           0xF00F66  // Button: Pink/Red
-#define COLOR_TEXT_DARK        0x516682  // Text Dark: Medium blue-gray (updated for Fan Active Off)
-#define COLOR_ERROR_ICON       0xF00F66  // Error Icon: Pink/Red
-#define COLOR_SUCCESS_ICON     0x25C46B  // Success Icon: Green
+#define COLOR_BG_APP            0x000000
+#define COLOR_ACCENT            0xF00F66   /* heart rate; QR close button */
+#define COLOR_POWER             0x7A5AF8
+#define COLOR_POWER_DARK        0x322566   /* power row disconnected */
+#define COLOR_CADENCE           0x0E7FA3
+#define COLOR_CADENCE_DARK      0x0A2933   /* cadence row disconnected */
+#define COLOR_CADENCE_LIGHT     0x25ADD3   /* cadence icon in the screensaver */
+#define COLOR_CONTROL_PRESSED   0x2F2F42   /* plus, minus, mode field pressed */
+#define COLOR_ACCENT_PRESSED    0xBD0C50   /* QR close button pressed */
+#define COLOR_WHITE             0xFFFFFF
+#define COLOR_FAN_UNCONFIGURED  0x303132
+#define COLOR_MODAL_BG          0x000000
+#define COLOR_MODAL_CARD        0x1E1E2A   /* also the dark control fields */
+#define COLOR_QR_AREA           0x1E2733
+#define COLOR_GREEN             0x06BB60   /* fan on, badge connected */
+#define COLOR_WARNING           0xFC9300   /* fan error, badge lost */
+#define COLOR_BADGE_GREY        0x3D4F67
+#define COLOR_DISCONNECTED      0x999999
 ```
 
-### Border Radius
+### Layout (homewind_ui.c)
 ```c
-#define RADIUS_CARD    24  // Main cards (HR, Settings)
-#define RADIUS_WIDGET  28  // Widget cards (CSC, Fan)
-#define RADIUS_BUTTON  32  // Buttons
-#define RADIUS_ICON    18  // Icon circles
+#define RADIUS_CARD      28   // HR card, rows
+#define RADIUS_CONTROL   32   // fan control
+#define RADIUS_FIELD     8    // minus, mode, plus fields
+#define RADIUS_BUTTON    36   // QR close button
+#define RADIUS_QR        24   // QR area
+#define SCREEN_GAP       8
+#define STATUS_BAR_H     44
+#define ROW_H            56
+#define FAN_CONTROL_H    132
+#define LONG_PRESS_MS    700  // mode field
 ```
 
-### Animation
+### Animation and Timing
 ```c
-#define MODAL_ANIMATION_TIME_MS       180  // Modal overlay animation duration
-#define MODAL_SLIDE_DISTANCE          60   // Modal overlay slide distance (px)
-#define FAN_TOGGLE_ANIMATION_TIME_MS  300  // Fan toggle color transition duration
-#define FAN_ANIM_RESOLUTION           1024 // Fan animation interpolation resolution
-#define BREATHING_ANIM_TIME           6000  // Breathing animation cycle (6 seconds)
+#define MODAL_ANIMATION_TIME_MS  180     // Modal overlay animation duration
+#define MODAL_SLIDE_DISTANCE     60      // Modal overlay slide distance (px)
+#define BREATHING_ANIM_TIME      6000    // Breathing animation cycle (powersave.c)
+#define DIM_TIMEOUT_MS           8000    // powersave.c
+#define SOFT_TIMEOUT_MS          20000
+#define PANEL_OFF_TIMEOUT_MS     (10UL * 60UL * 1000UL)
 ```
 
 ### Fonts
-- **Inter Black 64px**: HR value numbers
-- **Inter Bold 24px**: HR sensor name, button labels, QR code text
-- **Inter Bold 20px**: Fan names, CSC status
-- **Inter Bold 14px**: CSC sensor name
-- **Icon Font 56px**: Heart icon (U+31), Disconnected icon (U+34) - Powersave screen
-- **Icon Font 36px**: Checkmark (U+32), Error (U+33) - Main screen
+- **Inter Black 64px**: HR value
+- **Inter Bold 24px**: HR sensor name, row values, "Disconnected", "Add Sensors", fan mode and speed, screensaver values, QR text, buttons
+- **Inter Bold 14px**: Row sensor names, badges
+- **Icon Font 56px**: U+31 to U+36 and U+39 (HR card heart; screensaver heart, disconnected heart, bolt, crank, fan)
+- **Icon Font 36px**: U+31 to U+3A (all icons below)
 
-### Icon Font Mapping
-- **U+31 (character "1")**: Heart icon (HR widget - connected state, Powersave screen)
-- **U+32 (character "2")**: Checkmark icon (CSC/Fan active state)
-- **U+33 (character "3")**: Error icon (CSC/Fan error/inactive state)
-- **U+34 (character "4")**: Disconnected icon (HR widget - disconnected state)
-- **U+35 (character "5")**: CSC icon (Powersave screen)
-- **U+36 (character "6")**: Fan icon (Powersave screen)
+### Icon Font Mapping (`ui_style_helpers.h`)
+- **"1" `ICON_HEART`**: Heart
+- **"2"**: Checkmark (unused since 1.7.0)
+- **"3"**: Error "!" (unused since 1.7.0)
+- **"4" `ICON_HEART_OFF`**: Disconnected heart (HR card and screensaver)
+- **"5" `ICON_CRANK`**: Crank (cadence)
+- **"6" `ICON_FAN`**: Fan / wind
+- **"7" `ICON_PLUS`**, **"8" `ICON_MINUS`**: Fan control (since 1.7.0)
+- **"9" `ICON_BOLT`**: Power (since 1.7.0)
+- **":" `ICON_GEAR`**: Settings (since 1.7.0)
+
+New glyphs go into `fonts/FanFont.ttf` with `fonts/add_icons.py`, then `fonts/generate_fonts.sh`.
 
 ---
 
@@ -603,31 +546,33 @@ HomeWindWSAmoled/
 void setup() {
   Serial.begin(115200);
   
-  // Initialize the library (does everything)
+  // Initialize the library (display, LVGL, touch, screens, powersave)
   homewind_init();
+
+  // Leave the boot screen; powersave stays off until unlocked
+  if (lcd_lvgl_lock(-1)) {
+    homewind_show_main_screen();
+    powersave_unlock();
+    lcd_lvgl_unlock();
+  }
   
   // Set initial states
-  homewind_set_hr_state(HR_STATE_ACTIVE, "TickrFit", 75);
-  homewind_set_csc_state(CSC_STATE_ACTIVE, "Wahoo", 90);
-  
-  // Set fan states with toggle support
-  homewind_set_fan(0, FAN_STATE_INACTIVE, false);  // Fan 1: Active green, OFF
-  homewind_set_fan(1, FAN_STATE_ACTIVE, true);     // Fan 2: Active green, ON
-  
-  // Register fan toggle callback
-  homewind_set_fan_toggle_callback([](uint8_t fan_index, bool is_on) {
-    Serial.print("Fan ");
-    Serial.print(fan_index + 1);
-    Serial.print(" toggled to: ");
-    Serial.println(is_on ? "ON" : "OFF");
-  });
+  homewind_set_hr(HR_STATE_ACTIVE, "TickrFit", 75);
+  homewind_set_power_row(ROW_ACTIVE, "Assioma Duo", 180);
+  homewind_set_cadence_row(ROW_ACTIVE, "Wahoo", 90);
+  homewind_set_badges(BADGE_GREEN, BADGE_HIDDEN);
+
+  // Fan dots and the centre field
+  homewind_set_fan(0, FAN_STATE_ACTIVE, true);     // green
+  homewind_set_fan(1, FAN_STATE_INACTIVE, false);  // white
+  homewind_set_fan_control(FAN_MODE_SMART, true, 63);
 }
 
 void loop() {
   // Update values
   static uint16_t hrValue = 75;
   hrValue += random(-2, 3);
-  homewind_set_hr_state(HR_STATE_ACTIVE, "TickrFit", hrValue);
+  homewind_set_hr(HR_STATE_ACTIVE, "TickrFit", hrValue);
   
   delay(1000);
 }
@@ -638,51 +583,36 @@ void loop() {
 void update_sensors() {
   // HR sensor management
   if (hr_sensor_connected()) {
-    homewind_set_hr_state(HR_STATE_ACTIVE, "TickrFit", get_hr_value());
+    homewind_set_hr(HR_STATE_ACTIVE, "TickrFit", get_hr_value());
   } else if (hr_sensor_configured()) {
-    homewind_set_hr_state_simple(HR_STATE_ERROR);
+    homewind_set_hr(HR_STATE_INACTIVE, "TickrFit", 0);
   } else {
-    homewind_set_hr_state_simple(HR_STATE_INACTIVE);
+    homewind_set_hr_state(HR_NOT_CONFIGURATED);
   }
   
-  // CSC sensor management
+  // Cadence row
   if (csc_sensor_connected()) {
-    homewind_set_csc_state(CSC_STATE_ACTIVE, "Ridesense", get_cadence());
+    homewind_set_cadence_row(ROW_ACTIVE, "Ridesense", get_cadence());
   } else if (csc_sensor_configured()) {
-    homewind_set_csc_state_simple(CSC_STATE_ERROR);
+    homewind_set_cadence_row(ROW_DISCONNECTED, "Ridesense", 0);
   } else {
-    homewind_set_csc_state_simple(CSC_STATE_INACTIVE);
+    homewind_set_cadence_row(ROW_HIDDEN, NULL, 0);
   }
   
-  // Fan management
+  // Fan dots
   for (int i = 0; i < 4; i++) {
     if (fan_connected(i)) {
-      // Fan is connected - set to ACTIVE state
-      // Preserve current toggle state, or set to OFF by default
-      bool current_state = get_fan_toggle_state(i);  // Your function to get current state
-      homewind_set_fan_state(i, FAN_STATE_ACTIVE, current_state);
+      homewind_set_fan(i, FAN_STATE_ACTIVE, fan_running(i));
     } else if (fan_configured(i)) {
-      // Fan is configured but not connected - set to ERROR state
-      bool current_state = get_fan_toggle_state(i);
-      homewind_set_fan_state(i, FAN_STATE_ERROR, current_state);
+      homewind_set_fan(i, FAN_STATE_ERROR, false);
     } else {
-      // Fan not configured - set to NOT_CONFIGURATED (toggle state ignored)
       homewind_set_fan_state(i, FAN_STATE_NOT_CONFIGURATED);
     }
   }
 }
-
-// Register callback to handle user toggle actions
-void setup() {
-  homewind_init();
-  
-  homewind_set_fan_toggle_callback([](uint8_t fan_index, bool is_on) {
-    // Update your hardware/firmware state
-    set_fan_toggle_state(fan_index, is_on);  // Your function to save state
-    control_fan_hardware(fan_index, is_on);  // Your function to control hardware
-  });
-}
 ```
+
+Call the setters from a task other than the LVGL task only with `lcd_lvgl_lock()` held.
 
 ### Power Save Customization
 ```cpp
@@ -770,7 +700,7 @@ All widgets follow this pattern:
 #### Layout System
 - Flexbox layout for widget containers
 - `LV_FLEX_FLOW_COLUMN` for vertical stacking
-- `LV_FLEX_FLOW_ROW_WRAP` for grid layouts (Fan widget)
+- `LV_FLEX_FLOW_ROW` for the fan control fields; hidden rows (`LV_OBJ_FLAG_HIDDEN`) leave the flex layout, the HR card grows (`flex_grow`)
 - Alignment using `LV_ALIGN_*` constants
 - Padding and gaps controlled via style properties
 
@@ -783,13 +713,8 @@ All widgets follow this pattern:
 - Hidden by default with `LV_OBJ_FLAG_HIDDEN`
 
 #### Icon Font Implementation
-- Icons use Unicode characters mapped to icon font
-- Heart: character "1" (U+31) with `lv_font_icon_56` (HR connected, Powersave)
-- Disconnected: character "4" (U+34) with `lv_font_icon_56` (HR disconnected)
-- Checkmark: character "2" (U+32) with `lv_font_icon_36` (CSC/Fan active)
-- Error: character "3" (U+33) with `lv_font_icon_36` (CSC/Fan error/inactive)
-- CSC: character "5" (U+35) with `lv_font_icon_56` (Powersave screen)
-- Fan: character "6" (U+36) with `lv_font_icon_56` (Powersave screen)
+- Icons use ASCII characters mapped to the icon font (`ICON_*` in `ui_style_helpers.h`, see [Icon Font Mapping](#icon-font-mapping-ui_style_helpersh))
+- HR card and screensaver: `lv_font_icon_56`; rows, fan control and status bar: `lv_font_icon_36`
 
 #### Thread Safety
 - All UI updates should be called from LVGL task context
@@ -800,7 +725,7 @@ All widgets follow this pattern:
 #### Memory Management
 - All objects are static (created once, persist for lifetime)
 - No dynamic allocation in UI code
-- String buffers have fixed sizes (32 chars for names, 128 for URLs)
+- String buffers have fixed sizes (64 chars for names, 128 for URLs)
 - Font data stored in program memory (Flash)
 - **PSRAM for LVGL:** To move LVGL’s internal heap to PSRAM (saves internal RAM; may slightly slow UI), use the snippet in `extras/lv_conf_psram.h` and include it from your project’s `lv_conf.h`. See [PSRAM.md](PSRAM.md) for step-by-step instructions.
 
@@ -809,7 +734,7 @@ All widgets follow this pattern:
 - Transparent overlay for touch detection in dimmed state
 - Breathing animation uses custom path callback
 - Brightness controlled via `set_amoled_backlight()` function
-- State transitions: ACTIVE → DIMMED (10s) → SOFT_POWERSAVE (12s total)
+- State transitions: ACTIVE → DIMMED (8 s) → SOFT_POWERSAVE (20 s later) → PANEL_OFF (10 min without activity)
 
 ### Common Modifications
 
@@ -829,11 +754,9 @@ All widgets follow this pattern:
 #### Adjusting Animation
 - Change timing constants:
   - `MODAL_ANIMATION_TIME_MS` (default: 180ms) and `MODAL_SLIDE_DISTANCE` (default: 60px) - Settings modal slide animation
-  - `FAN_TOGGLE_ANIMATION_TIME_MS` (default: 300ms) - Fan toggle color transition
   - `BREATHING_ANIM_TIME` - Power save breathing animation
 - Modify easing function in animation setup
 - Available easing: `ease_in`, `ease_out`, `ease_in_out`, `linear`, `overshoot`
-- Fan toggle uses `lv_anim_path_ease_in_out` (sine ease-in-out equivalent)
 - Custom breathing curves via `set_breathing_*_curve()` functions
 
 #### Adding New State
@@ -844,8 +767,9 @@ All widgets follow this pattern:
 
 #### Modifying Power Save Timing
 - Edit constants in `powersave.c`:
-  - `DIM_TIMEOUT_MS` (default: 10000ms = 10s)
-  - `SOFT_TIMEOUT_MS` (default: 12000ms = 12s total)
+  - `DIM_TIMEOUT_MS` (default: 8000 ms)
+  - `SOFT_TIMEOUT_MS` (default: 20000 ms after dimming)
+  - `PANEL_OFF_TIMEOUT_MS` (default: 10 min in the screensaver without activity)
 - Timer checks every 500ms (defined in `powersave_init()`)
 
 ### Debugging Tips
@@ -875,15 +799,26 @@ void homewind_create_screens(void);
 void homewind_set_hr_state(hr_state_t state, ...);
 void homewind_set_hr_state_simple(hr_state_t state);
 
-// CSC Widget
-void homewind_set_csc_state(csc_state_t state, const char* sensor_name, uint16_t cadence);
-void homewind_set_csc_state_simple(csc_state_t state);
-void homewind_set_csc_power(int32_t watts);  // < 0 hides power
+// Power and cadence rows
+void homewind_set_power_row(row_state_t state, const char* name, uint16_t watts);
+void homewind_set_cadence_row(row_state_t state, const char* name, uint16_t rpm);
+void homewind_set_csc(csc_state_t state, const char* sensor_name, uint16_t cadence);  // cadence row
+void homewind_set_csc_state(csc_state_t state);
+void homewind_set_csc_cadence(uint16_t cadence);
+void homewind_set_csc_power(int32_t watts);  // deprecated
 
-// Fan Widget
-void homewind_set_fan_state(uint8_t fan_index, fan_state_t state, bool is_on);
-void homewind_set_fan_toggle_callback(fan_toggle_callback_t callback);
-typedef void (*fan_toggle_callback_t)(uint8_t fan_index, bool is_on);
+// Status badges
+void homewind_set_badges(badge_state_t app, badge_state_t trainer);
+
+// Fan control
+void homewind_set_fan(uint8_t fan_index, fan_state_t state, bool is_on);
+void homewind_set_fan_state(uint8_t fan_index, fan_state_t state);
+void homewind_set_fan_toggle(uint8_t fan_index, bool is_on);
+void homewind_set_fan_control(fan_mode_t mode, bool target_on, uint8_t target_pct);
+void homewind_set_fan_control_callbacks(hr_shift_callback_t shift, fan_mode_callback_t mode);
+typedef void (*hr_shift_callback_t)(int8_t steps);  // -1 = plus, +1 = minus
+typedef void (*fan_mode_callback_t)(void);           // long press on the mode field
+void homewind_set_fan_toggle_callback(fan_toggle_callback_t callback);  // deprecated
 
 // Settings
 void homewind_set_qr_code_url(const char* url);
@@ -892,6 +827,7 @@ void homewind_hide_settings_overlay(void);
 // Power Save
 void powersave_init(void);
 void on_user_activity(void);
+void homewind_powersave_wake(void);
 void set_state_active(void);
 void set_state_dimmed(void);
 void set_state_soft_powersave(void);
@@ -904,17 +840,39 @@ void set_breathing_exhale_curve(breathing_ease_type_t ease_type);
 ```c
 // HR States
 typedef enum {
-    HR_STATE_INACTIVE = 0,
-    HR_STATE_ERROR,
+    HR_NOT_CONFIGURATED = 0,
+    HR_STATE_INACTIVE,
     HR_STATE_ACTIVE
 } hr_state_t;
 
-// CSC States
+// CSC States (cadence row)
 typedef enum {
-    CSC_STATE_INACTIVE = 0,
-    CSC_STATE_ERROR,
+    CSC_NOT_CONFIGURATED = 0,
+    CSC_STATE_INACTIVE,
     CSC_STATE_ACTIVE
 } csc_state_t;
+
+// Row States
+typedef enum {
+    ROW_HIDDEN = 0,
+    ROW_DISCONNECTED,
+    ROW_ACTIVE
+} row_state_t;
+
+// Badge States
+typedef enum {
+    BADGE_HIDDEN = 0,
+    BADGE_GREY,
+    BADGE_ORANGE,
+    BADGE_GREEN
+} badge_state_t;
+
+// Fan Modes
+typedef enum {
+    FAN_MODE_PURE = 0,
+    FAN_MODE_SMART,
+    FAN_MODE_HYBRID
+} fan_mode_t;
 
 // Fan States
 typedef enum {
@@ -928,7 +886,8 @@ typedef enum {
 typedef enum {
     UI_POWER_STATE_ACTIVE = 0,
     UI_POWER_STATE_DIMMED,
-    UI_POWER_STATE_SOFT_POWERSAVE
+    UI_POWER_STATE_SOFT_POWERSAVE,
+    UI_POWER_STATE_PANEL_OFF
 } ui_power_state_t;
 
 // Breathing Easing Types
@@ -949,6 +908,8 @@ typedef enum {
 ---
 
 ## Version History
+
+Versions after 1.5.4 are described in [CHANGELOG.md](../CHANGELOG.md); 1.7.0 is the Touch UI redesign (status bar, power and cadence rows, fan control, new screensaver, panel off).
 
 - **1.5.4** - PSRAM for LVGL & Heap Debug Fix
   - **PSRAM:** Optional LVGL heap in PSRAM via `extras/lv_conf_psram.h`; lv_conf.h snippet and PSRAM.md steps

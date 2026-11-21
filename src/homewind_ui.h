@@ -9,16 +9,23 @@ extern "C" {
 
 /* --- State Enums --- */
 typedef enum {
-    CSC_NOT_CONFIGURATED = 0,  /* Not configured */
-    CSC_STATE_INACTIVE,        /* Configured but not connected */
+    CSC_NOT_CONFIGURATED = 0,  /* Not configured: row hidden */
+    CSC_STATE_INACTIVE,        /* Configured but not connected: "Disconnected" */
     CSC_STATE_ACTIVE           /* Connected, providing data */
 } csc_state_t;
 
+/* Power and cadence rows */
 typedef enum {
-    FAN_STATE_NOT_CONFIGURATED = 0,  /* Gray, not clickable */
-    FAN_STATE_INACTIVE,              /* Active green, off, clickable */
-    FAN_STATE_ERROR,                  /* Error pink/red, clickable, no icon */
-    FAN_STATE_ACTIVE                  /* Active green, on, no checkmark, clickable */
+    ROW_HIDDEN = 0,            /* No source configured: row hidden, HR card grows */
+    ROW_DISCONNECTED,          /* Dark row, "Disconnected" */
+    ROW_ACTIVE                 /* Coloured row with value */
+} row_state_t;
+
+typedef enum {
+    FAN_STATE_NOT_CONFIGURATED = 0,  /* Dot grey: slot empty */
+    FAN_STATE_INACTIVE,              /* Dot white: configured, no info yet */
+    FAN_STATE_ERROR,                 /* Dot orange: not reachable or error */
+    FAN_STATE_ACTIVE                 /* Dot green while is_on, else white */
 } fan_state_t;
 
 typedef enum {
@@ -27,21 +34,40 @@ typedef enum {
     HR_STATE_ACTIVE            /* Connected, providing data */
 } hr_state_t;
 
-/* --- Fan Toggle Callback --- */
+/* Status badges "APP" and "Trainer" */
+typedef enum {
+    BADGE_HIDDEN = 0,
+    BADGE_GREY,                /* set up, not connected yet */
+    BADGE_ORANGE,              /* was connected, now lost */
+    BADGE_GREEN                /* connected */
+} badge_state_t;
+
+typedef enum {
+    FAN_MODE_PURE = 0,
+    FAN_MODE_SMART,
+    FAN_MODE_HYBRID
+} fan_mode_t;
+
+/* --- Callbacks (called from the LVGL task, with the LVGL lock held) --- */
+/** Deprecated since 1.7.0: the main screen has no fan toggles; never called. */
 typedef void (*fan_toggle_callback_t)(uint8_t fan_index, bool is_on);
+/** Plus or minus tapped. steps: -1 = plus (lower the HR range, more wind), +1 = minus. */
+typedef void (*hr_shift_callback_t)(int8_t steps);
+/** Long press on the fan mode field: the application picks the next mode. */
+typedef void (*fan_mode_callback_t)(void);
 
 /* --- Public Functions --- */
 void homewind_create_screens(void);
 
 /* ============================================================================
- * HR Widget API (clean, explicit functions - no macro magic)
+ * HR Widget API
  * ============================================================================ */
 
 /**
  * @brief Set HR widget with all parameters
  * @param state HR_NOT_CONFIGURATED, HR_STATE_INACTIVE, or HR_STATE_ACTIVE
  * @param sensor_name Sensor name (NULL to keep current)
- * @param value Heart rate value (0 = no data yet, shown as "--")
+ * @param value Heart rate value (0 = no data yet, shown as "Disconnected")
  */
 void homewind_set_hr(hr_state_t state, const char* sensor_name, uint16_t value);
 
@@ -60,31 +86,29 @@ void homewind_set_hr_value(uint16_t value);
 #define homewind_set_hr_state_impl(state, name, val) homewind_set_hr(state, name, val)
 
 /* ============================================================================
- * CSC Widget API
+ * Power and cadence rows
  * ============================================================================ */
 
 /**
- * @brief Set CSC widget with all parameters
- * @param state CSC_NOT_CONFIGURATED, CSC_STATE_INACTIVE, or CSC_STATE_ACTIVE
- * @param sensor_name Sensor name (NULL to keep current)
- * @param cadence Cadence value in RPM (0 = not pedaling)
+ * @brief Set the power row ("210 W")
+ * @param name Source name (NULL to keep current); long names are cut off
  */
+void homewind_set_power_row(row_state_t state, const char* name, uint16_t watts);
+
+/**
+ * @brief Set the cadence row ("85 RPM")
+ * @param name Source name (NULL to keep current); long names are cut off
+ */
+void homewind_set_cadence_row(row_state_t state, const char* name, uint16_t rpm);
+
+/* CSC API: drives the cadence row (NOT_CONFIGURATED = hidden, INACTIVE = disconnected) */
 void homewind_set_csc(csc_state_t state, const char* sensor_name, uint16_t cadence);
-
-/**
- * @brief Set CSC widget state only (keep name and cadence)
- */
 void homewind_set_csc_state(csc_state_t state);
-
-/**
- * @brief Update CSC cadence only (keep state and name)
- */
 void homewind_set_csc_cadence(uint16_t cadence);
 
 /**
- * @brief Set the power shown on the CSC card (keep state, name and cadence)
- * @param watts Power in W; < 0 hides it ("85 RPM"), >= 0 shows power and
- *              cadence in the active status line ("210 W 85 rpm")
+ * @brief Deprecated since 1.7.0, use homewind_set_power_row()
+ * @param watts < 0 hides the power row, >= 0 shows it with the cadence row's name
  */
 void homewind_set_csc_power(int32_t watts);
 
@@ -92,37 +116,41 @@ void homewind_set_csc_power(int32_t watts);
 #define homewind_set_csc_state_simple(state) homewind_set_csc_state(state)
 
 /* ============================================================================
- * Fan Widget API
+ * Status badges
+ * ============================================================================ */
+
+void homewind_set_badges(badge_state_t app, badge_state_t trainer);
+
+/* ============================================================================
+ * Fan control field (minus | mode, speed, dots | plus)
  * ============================================================================ */
 
 /**
- * @brief Set fan widget with all parameters
+ * @brief Set one fan dot
  * @param fan_index Fan index (0-3)
- * @param state FAN_STATE_NOT_CONFIGURATED, FAN_STATE_INACTIVE, FAN_STATE_ERROR, or FAN_STATE_ACTIVE
- * @param is_on Toggle state (true = on, false = off)
+ * @param state Fan state
+ * @param is_on Fan takes part in the control (green dot while ACTIVE)
  */
 void homewind_set_fan(uint8_t fan_index, fan_state_t state, bool is_on);
 
-/**
- * @brief Set fan widget state only (keep is_on state, default false for new)
- * @param fan_index Fan index (0-3)
- * @param state Fan state
- */
+/** @brief Set one fan dot's state only (NOT_CONFIGURATED and INACTIVE clear is_on) */
 void homewind_set_fan_state(uint8_t fan_index, fan_state_t state);
 
-/**
- * @brief Toggle fan on/off (keep current state)
- * @param fan_index Fan index (0-3)
- * @param is_on Toggle state
- */
+/** @brief Set one fan dot's on state only */
 void homewind_set_fan_toggle(uint8_t fan_index, bool is_on);
 
 /* Legacy API (kept for backwards compatibility) */
 #define homewind_set_fan_state_impl(idx, state, on) homewind_set_fan(idx, state, on)
 
 /**
- * @brief Register callback for fan toggle events
+ * @brief Set the centre field: mode in effect and fan speed in % ("63", "0" while off)
  */
+void homewind_set_fan_control(fan_mode_t mode, bool target_on, uint8_t target_pct);
+
+/** @brief Register the plus/minus and mode callbacks (NULL to disable) */
+void homewind_set_fan_control_callbacks(hr_shift_callback_t shift, fan_mode_callback_t mode);
+
+/** @brief Deprecated since 1.7.0: stored, never called */
 void homewind_set_fan_toggle_callback(fan_toggle_callback_t callback);
 
 /* ============================================================================
@@ -140,13 +168,13 @@ void homewind_set_qr_code_url(const char* url);
 void homewind_hide_settings_overlay(void);
 
 /**
- * @brief Refresh powersave screen labels (HR/CSC/fan) – call when entering SOFT_POWERSAVE
+ * @brief Refresh the screensaver from the current values (powersave module)
  */
 void homewind_refresh_powersave_display(void);
 
 /**
- * @brief Force-refresh all main screen widgets (HR/CSC/fans)
- * 
+ * @brief Force-refresh all main screen widgets
+ *
  * Invalidates all widget caches and re-renders. Call after returning from
  * soft-powersave to ensure main screen reflects current state.
  * @note Must be called when power state is already ACTIVE (not SOFT_POWERSAVE),

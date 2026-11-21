@@ -55,20 +55,22 @@ node /pfad/zu/lv_font_conv/bin/lv_font_conv.js ...
 | Font-Datei | Quelle (TTF) | Größe | `--range` | Zeichen (konvertiert) |
 |------------|--------------|-------|-----------|------------------------|
 | `lv_font_inter_black_64.c` | Inter_18pt-Black.ttf | 64px | 48–57 | **Ziffern:** `0` `1` `2` `3` `4` `5` `6` `7` `8` `9` |
-| `lv_font_inter_bold_14.c` | Inter_18pt-Bold.ttf | 14px | 32, 48–57, 65–90, 97–122 | **Nur:** Space, `0`–`9`, `A`–`Z`, `a`–`z` (keine Satzzeichen/Sonderzeichen) |
+| `lv_font_inter_bold_14.c` | Inter_18pt-Bold.ttf | 14px | 32–35, 37–39, 42–90, 92, 94–95, 97–122, 126 | druckbares ASCII ohne `$` `(` `)` `[` `]` `` ` `` `{` `}` `|` (Sensornamen aus dem BLE-Advertising) |
 | `lv_font_inter_bold_16.c` | Inter_18pt-Bold.ttf | 16px | 32, 48–57, 65–90, 97–122 | wie oben |
 | `lv_font_inter_bold_20.c` | Inter_18pt-Bold.ttf | 20px | 32, 48–57, 65–90, 97–122 | wie oben |
-| `lv_font_inter_bold_24.c` | Inter_18pt-Bold.ttf | 24px | 32, 48–57, 65–90, 97–122 | wie oben |
+| `lv_font_inter_bold_24.c` | Inter_18pt-Bold.ttf | 24px | wie Bold 14 | wie Bold 14 |
 | `lv_font_inter_regular_20.c` | Inter_18pt-Regular.ttf | 20px | 32, 48–57, 65–90, 97–122 | wie oben |
 | `lv_font_inter_regular_24.c` | Inter_18pt-Regular.ttf | 24px | 32, 48–57, 65–90, 97–122 | wie oben |
-| `lv_font_icon_56.c` | FanFont.ttf | 56px | 48–57 | **Ziffern (als Icons):** `0`–`9` |
-| `lv_font_icon_36.c` | FanFont.ttf | 32px | 48–57 | **Ziffern (als Icons):** `0`–`9` |
+| `lv_font_icon_56.c` | FanFont.ttf | 56px | 49–54, 57 | Icons `1`–`6` (Herz, Haken, !, Herz getrennt, Kurbel, Lüfter) und `9` (Blitz), HR-Karte und Screensaver |
+| `lv_font_icon_36.c` | FanFont.ttf | 32px | 49–58 | Icons `1`–`:` (zusätzlich Plus `7`, Minus `8`, Blitz `9`, Zahnrad `:`) |
+
+Neue Icons kommen mit `add_icons.py` in `FanFont.ttf` (fontTools, Pfade aus Figma), danach `generate_fonts.sh`.
 
 ### Range-Erklärung
 
 - **48–57** = ASCII-Codes für die Zeichen `0` (48) bis `9` (57).
 - **32, 48–57, 65–90, 97–122** (Inter Bold/Regular): nur **Leerzeichen**, **0–9**, **A–Z**, **a–z** (keine Satzzeichen/Sonderzeichen wie `!` `,` `.` `:` usw.) – spart Glyphen und Speicher.
-- Früher **32–126** = volles druckbares ASCII (inkl. Satzzeichen); bei Bedarf wieder auf `--range 32-126` stellen.
+- **Bold 14 und 24** (`NAME_RANGE` in `generate_fonts.sh`): druckbares ASCII ohne `$ ( ) [ ] ` { } |`. Diese neun Zeichen sind höher bzw. tiefer als der Rest und würden die Zeilenhöhe von 14 auf 15/18 px bzw. von 23 auf 24/29 px vergrößern; die Labelpositionen sind auf 14 und 23 px abgestimmt. In Namen erscheinen sie als Platzhalter-Kästchen.
 
 ## Optionen, die das Skript an lv_font_conv übergibt
 

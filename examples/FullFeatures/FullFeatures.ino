@@ -2,9 +2,9 @@
  * FullFeatures.ino
  * 
  * Complete example demonstrating all features of HomeWindWSAmoled library:
- * - HR widget with all states
- * - CSC widget with RPM display
- * - Fan widget (4 fans) with different states
+ * - HR card with all states
+ * - Power and cadence rows, status badges
+ * - Fan control (4 fan dots, mode, speed, plus/minus)
  * - Power save functionality
  * - QR code settings
  * - Display rotation (manual and automatic)
@@ -36,6 +36,13 @@ void setup() {
   
   // Initialize the library (display, LVGL, touch, UI, powersave)
   homewind_init();
+
+  // Leave the "Warming Up" boot screen; powersave stays off until unlocked
+  if (lcd_lvgl_lock(-1)) {
+    homewind_show_main_screen();
+    powersave_unlock();
+    lcd_lvgl_unlock();
+  }
   
   // Set QR code URL for settings modal
   homewind_set_qr_code_url("https://homewind.example.com/setup");
@@ -50,23 +57,22 @@ void setup() {
   homewind_set_csc(CSC_NOT_CONFIGURATED, NULL, 0);
   Serial.println("CSC: Not configured");
   
-  // Initialize Fan states with toggle support
-  // New v1.4 API: homewind_set_fan(index, state, is_on)
-  // Fans can be toggled on/off by touching them (only ACTIVE and ERROR fans are toggleable)
-  homewind_set_fan(0, FAN_STATE_ACTIVE, false);    // Fan 1: Active, OFF
-  homewind_set_fan(1, FAN_STATE_ACTIVE, true);     // Fan 2: Active, ON
-  homewind_set_fan(2, FAN_STATE_ERROR, false);     // Fan 3: Error, OFF
-  homewind_set_fan_state(3, FAN_STATE_NOT_CONFIGURATED);   // Fan 4: Not configured (not toggleable)
-  Serial.println("Fans: 2 active (1 on, 1 off), 1 error (off), 1 inactive");
+  // Power row and badges
+  homewind_set_power_row(ROW_DISCONNECTED, "Assioma Duo", 0);
+  homewind_set_badges(BADGE_GREY, BADGE_HIDDEN);
+
+  // Fan dots: homewind_set_fan(index, state, is_on)
+  homewind_set_fan(0, FAN_STATE_ACTIVE, false);    // Fan 1: white
+  homewind_set_fan(1, FAN_STATE_ACTIVE, true);     // Fan 2: green
+  homewind_set_fan(2, FAN_STATE_ERROR, false);     // Fan 3: orange
+  homewind_set_fan_state(3, FAN_STATE_NOT_CONFIGURATED);   // Fan 4: grey
+  homewind_set_fan_control(FAN_MODE_SMART, true, 55);
+  Serial.println("Fans: 2 active (1 on, 1 off), 1 error, 1 not configured");
   
-  // Register fan toggle callback to handle user interactions
-  homewind_set_fan_toggle_callback([](uint8_t fan_index, bool is_on) {
-    Serial.print("Fan ");
-    Serial.print(fan_index + 1);
-    Serial.print(" toggled to: ");
-    Serial.println(is_on ? "ON" : "OFF");
-    // Here you can control actual fan hardware, update state, etc.
-  });
+  // Plus/minus and the mode long press run in the LVGL task: keep them short
+  homewind_set_fan_control_callbacks(
+    [](int8_t steps) { Serial.println(steps < 0 ? "Plus" : "Minus"); },
+    []() { Serial.println("Mode long press"); });
   
   // Optional: Set initial display rotation
   // homewind_set_rotation(LV_DISP_ROT_0);    // Normal orientation
@@ -76,10 +82,10 @@ void setup() {
   
   Serial.println("\nSetup complete!");
   Serial.println("Features:");
-  Serial.println("- Touch the settings button (top right) to open QR code modal");
-  Serial.println("- Touch ACTIVE or ERROR fans to toggle them on/off (smooth 300ms animation)");
-  Serial.println("- Power save will activate after 10s (dimmed) and 12s (soft powersave)");
-  Serial.println("- Touch screen to wake from power save");
+  Serial.println("- Touch the gear (top right) to open QR code modal");
+  Serial.println("- Tap plus/minus, long-press the mode field");
+  Serial.println("- Power save: dimmed after 8 s, screensaver 20 s later, panel off after 10 min");
+  Serial.println("- Touch screen to wake from power save (that touch only wakes)");
   Serial.println("- Display rotation: Use homewind_set_rotation() or enable automatic IMU rotation");
 }
 
@@ -140,9 +146,9 @@ void loop() {
         // Mixed states with different toggle states
         homewind_set_fan(0, FAN_STATE_ACTIVE, true);
         homewind_set_fan(1, FAN_STATE_ERROR, false);
-        homewind_set_fan_state(2, FAN_STATE_NOT_CONFIGURATED);  // Not configured (not toggleable)
+        homewind_set_fan_state(2, FAN_STATE_NOT_CONFIGURATED);
         homewind_set_fan(3, FAN_STATE_ERROR, true);
-        Serial.println("Fans: Mixed states (with toggle)");
+        Serial.println("Fans: Mixed states");
         break;
       case 2:
         // All error, all off

@@ -20,6 +20,7 @@ static SemaphoreHandle_t lvgl_mux = NULL; //mutex semaphores
 static const char *TAG = "lcd_bsp";
 
 static esp_lcd_panel_io_handle_t amoled_panel_io_handle = NULL; 
+static esp_lcd_panel_handle_t amoled_panel_handle = NULL;
 static lv_disp_t *g_display = NULL;
 static lv_disp_drv_t *g_disp_drv = NULL;
 
@@ -161,6 +162,7 @@ void lcd_lvgl_Init(void)
   ESP_LOGI(TAG, "Board %s (TE pulses: %lu)", lcd_get_board_revision_name(), (unsigned long)g_te_pulses);
 
   amoled_panel_io_handle = io_handle;
+  amoled_panel_handle = panel_handle;
   ESP_ERROR_CHECK_WITHOUT_ABORT(esp_lcd_panel_disp_on_off(panel_handle, true));
 
   lv_init();
@@ -324,6 +326,12 @@ esp_err_t set_amoled_backlight(uint8_t brig)
   lcd_cmd <<= 8;
   lcd_cmd |= 0x02 << 24;
   return esp_lcd_panel_io_tx_param(amoled_panel_io_handle, lcd_cmd, &brig,1);
+}
+
+esp_err_t lcd_set_display_on(bool on)
+{
+  if (!amoled_panel_handle) return ESP_ERR_INVALID_STATE;
+  return esp_lcd_panel_disp_on_off(amoled_panel_handle, on);
 }
 
 lcd_board_rev_t lcd_get_board_revision(void)

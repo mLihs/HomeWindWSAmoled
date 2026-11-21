@@ -35,6 +35,8 @@ bool lcd_lvgl_lock(int timeout_ms);
 void lcd_lvgl_unlock(void);
 static void example_lvgl_touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data);
 esp_err_t set_amoled_backlight(uint8_t brig);
+/** SH8601 display on/off (DISPON/DISPOFF); the frame memory keeps its content. Call under the LVGL lock. */
+esp_err_t lcd_set_display_on(bool on);
 void lcd_set_rotation(lv_disp_rot_t rotation);
 
 typedef enum {

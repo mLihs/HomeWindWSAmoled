@@ -45,7 +45,14 @@ patch_lvgl_include "$FILE"
 
 
 #####################################
-# Bold 14 (Space, -, /, 0-9, A-Z, a-z – "-" für "--", "/" für "0/4")
+# Bold 14 und 24: druckbares ASCII ohne $ ( ) [ ] ` { } | – diese Zeichen
+# vergrößern die Zeilenhöhe (14 → 15/18, 23 → 24/29) und damit das Layout.
+# Sensornamen kommen aus dem BLE-Advertising (z. B. "HRM-Pro:123456").
+#####################################
+NAME_RANGE="32-35,37-39,42-90,92,94-95,97-122,126"
+
+#####################################
+# Bold 14 (Namen in den Sensorzeilen)
 #####################################
 FILE="$OUTDIR/lv_font_inter_bold_14.c"
 lv_font_conv \
@@ -53,7 +60,7 @@ lv_font_conv \
   --size 14 \
   --bpp 4 \
   --format lvgl \
-  --range 32,45,47,48-57,65-90,97-122 \
+  --range "$NAME_RANGE" \
   --no-compress \
   --output "$FILE"
 
@@ -65,7 +72,7 @@ patch_lvgl_include "$FILE"
 
 
 #####################################
-# Bold 24 (Space, -, /, 0-9, A-Z, a-z – "-" für "--", "/" für "0/4")
+# Bold 24 (HR-Name, Werte, Screensaver)
 #####################################
 FILE="$OUTDIR/lv_font_inter_bold_24.c"
 lv_font_conv \
@@ -73,7 +80,7 @@ lv_font_conv \
   --size 24 \
   --bpp 4 \
   --format lvgl \
-  --range 32,45,47,48-57,65-90,97-122 \
+  --range "$NAME_RANGE" \
   --no-compress \
   --output "$FILE"
 
@@ -82,7 +89,7 @@ patch_lvgl_include "$FILE"
 
 
 #####################################
-# 64px Icons Only – 123
+# 56px Icons – 1 Herz, 2 Haken, 3 !, 4 Herz getrennt, 5 Kurbel, 6 Lüfter, 9 Blitz (Screensaver)
 #####################################
 FILE="$OUTDIR/lv_font_icon_56.c"
 lv_font_conv \
@@ -90,7 +97,7 @@ lv_font_conv \
   --size 56 \
   --bpp 4 \
   --format lvgl \
-  --range 48-57 \
+  --range 49-54,57 \
   --no-compress \
   --output "$FILE"
 
@@ -99,7 +106,7 @@ patch_lvgl_include "$FILE"
 
 
 #####################################
-# 36px Icons Only – 123
+# 36px Icons – 1-6 wie 56, 7 plus, 8 minus, 9 Blitz, : Zahnrad (add_icons.py)
 #####################################
 FILE="$OUTDIR/lv_font_icon_36.c"
 lv_font_conv \
@@ -107,7 +114,7 @@ lv_font_conv \
   --size 32 \
   --bpp 4 \
   --format lvgl \
-  --range 48-57 \
+  --range 49-58 \
   --no-compress \
   --output "$FILE"
 

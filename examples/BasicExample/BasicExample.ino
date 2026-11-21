@@ -6,8 +6,8 @@
  * - Initialize the library
  * - Set HR widget state
  * - Update HR values
- * - Set fan states with toggle support
- * - Register fan toggle callback
+ * - Set fan dots and the fan control field
+ * - Register the plus/minus and mode callbacks
  * 
  * Hardware Requirements:
  * - ESP32 microcontroller
@@ -31,6 +31,13 @@ void setup() {
   
   // Initialize the library (display, LVGL, touch, UI screens, powersave)
   homewind_init();
+
+  // Leave the "Warming Up" boot screen; powersave stays off until unlocked
+  if (lcd_lvgl_lock(-1)) {
+    homewind_show_main_screen();
+    powersave_unlock();
+    lcd_lvgl_unlock();
+  }
   
   // Optional: Set display rotation
   // homewind_set_rotation(LV_DISP_ROT_0);    // Normal (default)
@@ -43,34 +50,21 @@ void setup() {
   homewind_set_hr(HR_STATE_INACTIVE, "TickrFit", 0);
   homewind_set_csc(CSC_STATE_INACTIVE, "Ridesense", 0);
   
-  // Set initial fan states
-  // New v1.4 API: homewind_set_fan(index, state, is_on)
-  // Fan 1: Active, OFF (can be toggled by touching)
-  homewind_set_fan(0, FAN_STATE_ACTIVE, false);
-  // Fan 2: Active, ON (can be toggled by touching)
-  homewind_set_fan(1, FAN_STATE_ACTIVE, true);
-  // Fan 3: Inactive (not toggleable)
-  homewind_set_fan_state(2, FAN_STATE_NOT_CONFIGURATED);
-  // Fan 4: Error, OFF (can be toggled by touching)
-  homewind_set_fan(3, FAN_STATE_ERROR, false);
-  
-  // Register callback to handle fan toggle events
-  // This is called when user touches an ACTIVE or ERROR fan to toggle it on/off
-  homewind_set_fan_toggle_callback([](uint8_t fan_index, bool is_on) {
-    Serial.print("Fan ");
-    Serial.print(fan_index + 1);
-    Serial.print(" toggled to: ");
-    Serial.println(is_on ? "ON" : "OFF");
-    
-    // Here you can control actual fan hardware, update state, etc.
-  });
+  // Fan dots: homewind_set_fan(index, state, is_on)
+  homewind_set_fan(0, FAN_STATE_ACTIVE, false);           // white
+  homewind_set_fan(1, FAN_STATE_ACTIVE, true);            // green
+  homewind_set_fan_state(2, FAN_STATE_NOT_CONFIGURATED);  // grey
+  homewind_set_fan(3, FAN_STATE_ERROR, false);            // orange
+  homewind_set_fan_control(FAN_MODE_PURE, true, 40);
+
+  // Plus/minus and the mode long press run in the LVGL task: keep them short
+  homewind_set_fan_control_callbacks(
+    [](int8_t steps) { Serial.println(steps < 0 ? "Plus" : "Minus"); },
+    []() { Serial.println("Mode long press"); });
   
   Serial.println("Setup complete!");
-  Serial.println("- Display shows HR widget in error state");
-  Serial.println("- Fan 1: Active OFF (touch to toggle)");
-  Serial.println("- Fan 2: Active ON (touch to toggle)");
-  Serial.println("- Fan 3: Inactive (not toggleable)");
-  Serial.println("- Fan 4: Error OFF (touch to toggle)");
+  Serial.println("- HR card shows Disconnected");
+  Serial.println("- Tap plus/minus or long-press the mode field");
 }
 
 void loop() {

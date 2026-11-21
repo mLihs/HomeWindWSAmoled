@@ -6,13 +6,14 @@
  * A comprehensive UI library for ESP32-based fitness/cycling devices
  * featuring AMOLED display support, LVGL graphics, and power management.
  * 
- * Version: 1.6.1
+ * Version: 1.7.0
  * 
  * Features:
- * - Heart Rate (HR) widget with sensor state management
- * - Cadence Sensor (CSC) widget with RPM display
- * - Fan control widget (up to 4 fans)
- * - Power save modes (Active, Dimmed, Soft Powersave)
+ * - Status bar with APP and Trainer badges
+ * - Heart Rate (HR) card with sensor state management
+ * - Power and cadence rows
+ * - Fan control (plus/minus, mode, speed, up to 4 fan dots)
+ * - Power save modes (Active, Dimmed, Screensaver, Panel Off)
  * - Touch screen support
  * - QR code settings modal
  * - Display rotation (manual and automatic IMU-based)
@@ -45,9 +46,9 @@
 
 // Library version information
 #define HOMEWIND_WS_AMOLED_VERSION_MAJOR 1
-#define HOMEWIND_WS_AMOLED_VERSION_MINOR 6
-#define HOMEWIND_WS_AMOLED_VERSION_PATCH 1
-#define HOMEWIND_WS_AMOLED_VERSION "1.6.1"
+#define HOMEWIND_WS_AMOLED_VERSION_MINOR 7
+#define HOMEWIND_WS_AMOLED_VERSION_PATCH 0
+#define HOMEWIND_WS_AMOLED_VERSION "1.7.0"
 
 #ifdef __cplusplus
 extern "C" {
