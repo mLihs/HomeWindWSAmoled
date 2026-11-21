@@ -26,12 +26,12 @@ void setup() {
   // Initialize the library
   homewind_init();
 
+  // The LVGL task runs from here on: call the library only with the lock held
+  lcd_lvgl_lock(-1);
+
   // Leave the "Warming Up" boot screen; powersave stays off until unlocked
-  if (lcd_lvgl_lock(-1)) {
-    homewind_show_main_screen();
-    powersave_unlock();
-    lcd_lvgl_unlock();
-  }
+  homewind_show_main_screen();
+  powersave_unlock();
   
   // Customize breathing animation curves
   // Set inhale to cubic ease-in (smooth acceleration)
@@ -51,6 +51,7 @@ void setup() {
   homewind_set_csc(CSC_STATE_ACTIVE, "Wahoo", 90);
   homewind_set_fan_state(0, FAN_STATE_ACTIVE);
   homewind_set_fan_state(1, FAN_STATE_ACTIVE);
+  lcd_lvgl_unlock();
   
   Serial.println("\nPower Save Behavior:");
   Serial.println("- After 8s inactivity: DIMMED state");
@@ -64,6 +65,7 @@ void loop() {
   static unsigned long lastUpdate = 0;
   static unsigned long lastStateChange = 0;
   static bool manualControl = false;
+  lcd_lvgl_lock(-1);
   
   // Update HR value
   if (millis() - lastUpdate > 2000) {
@@ -96,6 +98,7 @@ void loop() {
   
   // Note: Normal operation uses automatic power save based on inactivity
   // The on_user_activity() function is called automatically on touch
+  lcd_lvgl_unlock();
   
   delay(100);
 }

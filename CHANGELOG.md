@@ -4,6 +4,13 @@ All notable changes to the HomeWindWSAmoled library are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.7.1] - 2026-11-21
+
+### Fixed
+- `homewind_init()` creates the screens and starts powersave under the LVGL lock; the LVGL task already runs at that point.
+- Manual power states: `set_state_active()` wakes like a touch (panel on, main screen refreshed, before it only set the state); `set_state_soft_powersave()` switches a dark panel back on; `set_state_dimmed()` refreshes the main screen when it comes from the screensaver.
+- Examples call the library only with the LVGL lock held; FullFeaturesHeapDebug uses the fan control callbacks instead of the deprecated fan toggle callback.
+
 ## [1.7.0] - 2026-11-21
 
 Touch UI redesign (Homewind `Refactoring/TOUCH_UI_CONCEPT_V2.md`, Figma "Homewind Touch").

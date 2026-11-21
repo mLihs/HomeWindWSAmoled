@@ -6,7 +6,7 @@
  * A comprehensive UI library for ESP32-based fitness/cycling devices
  * featuring AMOLED display support, LVGL graphics, and power management.
  * 
- * Version: 1.7.0
+ * Version: 1.7.1
  * 
  * Features:
  * - Status bar with APP and Trainer badges
@@ -47,8 +47,8 @@
 // Library version information
 #define HOMEWIND_WS_AMOLED_VERSION_MAJOR 1
 #define HOMEWIND_WS_AMOLED_VERSION_MINOR 7
-#define HOMEWIND_WS_AMOLED_VERSION_PATCH 0
-#define HOMEWIND_WS_AMOLED_VERSION "1.7.0"
+#define HOMEWIND_WS_AMOLED_VERSION_PATCH 1
+#define HOMEWIND_WS_AMOLED_VERSION "1.7.1"
 
 #ifdef __cplusplus
 extern "C" {

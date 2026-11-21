@@ -96,11 +96,9 @@ void setup() {
 
   /* Init library first (its printf/qmi8658_log output appears here). */
   homewind_init();
-  if (lcd_lvgl_lock(-1)) {   /* leave the boot screen, start powersave */
-    homewind_show_main_screen();
-    powersave_unlock();
-    lcd_lvgl_unlock();
-  }
+  lcd_lvgl_lock(-1);   /* the LVGL task runs: library calls only with the lock */
+  homewind_show_main_screen();   /* leave the boot screen, start powersave */
+  powersave_unlock();
   homewind_set_qr_code_url("https://homewind.example.com/setup");
 
   homewind_set_hr(HR_STATE_INACTIVE, "TickrFit", 0);
@@ -110,10 +108,10 @@ void setup() {
   homewind_set_fan(2, FAN_STATE_ERROR, false);
   homewind_set_fan_state(3, FAN_STATE_NOT_CONFIGURATED);
 
-  homewind_set_fan_toggle_callback([](uint8_t fan_index, bool is_on) {
-    printf("Fan %u toggled to: %s\n", fan_index + 1, is_on ? "ON" : "OFF");
-    fflush(stdout);
-  });
+  homewind_set_fan_control_callbacks(
+    [](int8_t steps) { printf("%s\n", steps < 0 ? "Plus" : "Minus"); },
+    []() { printf("Mode long press\n"); });
+  lcd_lvgl_unlock();
 
   /* Use printf() so output appears on same UART as library (qmi8658_log). */
   printf("\n--- FullFeaturesHeapDebug ---\n");
@@ -141,6 +139,7 @@ void loop() {
   static unsigned long lastHRUpdate = 0;
   static unsigned long lastCSCUpdate = 0;
   static unsigned long lastFanUpdate = 0;
+  lcd_lvgl_lock(-1);
 
   if (millis() - lastHRUpdate > 2000) {
     lastHRUpdate = millis();
@@ -190,6 +189,7 @@ void loop() {
         break;
     }
   }
+  lcd_lvgl_unlock();
 
   delay(100);
 }

@@ -37,12 +37,12 @@ void setup() {
   // Initialize the library (display, LVGL, touch, UI, powersave)
   homewind_init();
 
+  // The LVGL task runs from here on: call the library only with the lock held
+  lcd_lvgl_lock(-1);
+
   // Leave the "Warming Up" boot screen; powersave stays off until unlocked
-  if (lcd_lvgl_lock(-1)) {
-    homewind_show_main_screen();
-    powersave_unlock();
-    lcd_lvgl_unlock();
-  }
+  homewind_show_main_screen();
+  powersave_unlock();
   
   // Set QR code URL for settings modal
   homewind_set_qr_code_url("https://homewind.example.com/setup");
@@ -79,10 +79,11 @@ void setup() {
   // homewind_set_rotation(LV_DISP_ROT_180);  // Rotate 180 degrees
   // homewind_set_rotation(LV_DISP_ROT_90);   // Rotate 90 degrees
   // homewind_set_rotation(LV_DISP_ROT_270);  // Rotate 270 degrees
+  lcd_lvgl_unlock();
   
   Serial.println("\nSetup complete!");
   Serial.println("Features:");
-  Serial.println("- Touch the gear (top right) to open QR code modal");
+  Serial.println("- Tap the pink status bar or HR card to open the QR code modal");
   Serial.println("- Tap plus/minus, long-press the mode field");
   Serial.println("- Power save: dimmed after 8 s, screensaver 20 s later, panel off after 10 min");
   Serial.println("- Touch screen to wake from power save (that touch only wakes)");
@@ -94,6 +95,7 @@ void loop() {
   static unsigned long lastCSCUpdate = 0;
   static unsigned long lastFanUpdate = 0;
   static unsigned long lastRotationDemo = 0;
+  lcd_lvgl_lock(-1);
   
   // Update HR value every 2 seconds
   if (millis() - lastHRUpdate > 2000) {
@@ -195,6 +197,7 @@ void loop() {
     }
   }
   */
+  lcd_lvgl_unlock();
   
   delay(100);
 }

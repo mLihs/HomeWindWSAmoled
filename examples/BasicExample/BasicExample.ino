@@ -32,12 +32,12 @@ void setup() {
   // Initialize the library (display, LVGL, touch, UI screens, powersave)
   homewind_init();
 
+  // The LVGL task runs from here on: call the library only with the lock held
+  lcd_lvgl_lock(-1);
+
   // Leave the "Warming Up" boot screen; powersave stays off until unlocked
-  if (lcd_lvgl_lock(-1)) {
-    homewind_show_main_screen();
-    powersave_unlock();
-    lcd_lvgl_unlock();
-  }
+  homewind_show_main_screen();
+  powersave_unlock();
   
   // Optional: Set display rotation
   // homewind_set_rotation(LV_DISP_ROT_0);    // Normal (default)
@@ -61,6 +61,7 @@ void setup() {
   homewind_set_fan_control_callbacks(
     [](int8_t steps) { Serial.println(steps < 0 ? "Plus" : "Minus"); },
     []() { Serial.println("Mode long press"); });
+  lcd_lvgl_unlock();
   
   Serial.println("Setup complete!");
   Serial.println("- HR card shows Disconnected");
@@ -74,6 +75,7 @@ void loop() {
   
   if (millis() - lastUpdate > 3000) {
     lastUpdate = millis();
+    lcd_lvgl_lock(-1);
     
     if (!sensorConnected) {
       // Connect sensor and set active state with name
@@ -93,6 +95,7 @@ void loop() {
       Serial.print(hrValue);
       Serial.println(" BPM");
     }
+    lcd_lvgl_unlock();
   }
   
   // Small delay to prevent excessive updates

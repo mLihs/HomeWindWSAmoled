@@ -1030,12 +1030,16 @@ void homewind_init(void)
     extern void lcd_lvgl_Init(void);
     lcd_lvgl_Init();
     
-    /* 3. Create UI screens (main screen with widgets, settings modal) */
-    homewind_create_screens();
-    
-    /* 4. Initialize power save system (timers, overlays, breathing animation) */
+    /* 3. Create UI screens (main screen with widgets, settings modal) and
+     * 4. initialize power save (timers, breathing animation). The LVGL task
+     * runs already, so both need the lock. */
     extern void powersave_init(void);
+    extern bool lcd_lvgl_lock(int timeout_ms);
+    extern void lcd_lvgl_unlock(void);
+    lcd_lvgl_lock(-1);
+    homewind_create_screens();
     powersave_init();
+    lcd_lvgl_unlock();
     
     /* 5. Start IMU rotation task if QMI8658 hardware is available */
     #ifdef QMI8658_SLAVE_ADDR_L

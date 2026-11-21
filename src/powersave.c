@@ -408,9 +408,7 @@ static void inactivity_timer_cb(lv_timer_t *timer)
 /* --- State Transition Functions --- */
 void set_state_active(void)
 {
-    /* This is now handled in on_user_activity() */
-    current_power_state = UI_POWER_STATE_ACTIVE;
-    last_activity_time = lv_tick_get();
+    on_user_activity();
 }
 
 void set_state_dimmed(void)
@@ -418,22 +416,29 @@ void set_state_dimmed(void)
     lv_obj_t *scr_main = get_main_screen();
     if (!scr_main) return;
 
+    const bool was_screensaver = current_power_state >= UI_POWER_STATE_SOFT_POWERSAVE;
     if (current_power_state == UI_POWER_STATE_PANEL_OFF) {
         lcd_set_display_on(true);
     }
-    if (current_power_state >= UI_POWER_STATE_SOFT_POWERSAVE) {
+    if (was_screensaver) {
         lv_scr_load(scr_main);
         stop_breathing_animation();
     }
 
     set_brightness(BRIGHTNESS_DIMMED);
     current_power_state = UI_POWER_STATE_DIMMED;
+    if (was_screensaver) {
+        homewind_refresh_main_display();   /* updates were skipped in the screensaver */
+    }
 }
 
 void set_state_soft_powersave(void)
 {
     if (!scr_powersave) {
         create_powersave_screen();
+    }
+    if (current_power_state == UI_POWER_STATE_PANEL_OFF) {
+        lcd_set_display_on(true);
     }
 
     /* Set state first so any code during/after load sees SOFT_POWERSAVE */

@@ -1,6 +1,6 @@
 ---
 title: HomeWindWSAmoled Library Documentation
-version: 1.7.0
+version: 1.7.1
 library_name: HomeWindWSAmoled
 platform: ESP32
 framework: Arduino
@@ -287,13 +287,15 @@ Reset inactivity timer and return to active state. Called automatically on touch
 Activity that is not a touch: a sensor connects or sends data, an app connects, a web UI change. Restarts the 10 min panel-off timeout; a switched-off panel comes back on with the screensaver. The main screen and the dim timeout stay as they are. Call under the LVGL lock; cheap enough for every data update (Homewind calls it at most once per second).
 
 #### `void set_state_active(void)`
-Manually set power state to active.
+Wakes the display as a touch would: panel on, main screen with fresh values, full brightness, dim timeout restarted.
 
 #### `void set_state_dimmed(void)`
-Manually set power state to dimmed.
+Dims the main screen; from the screensaver or panel off it loads the main screen with fresh values first.
 
 #### `void set_state_soft_powersave(void)`
-Manually set power state to soft powersave.
+Shows the screensaver; a switched-off panel comes back on.
+
+Call the three under the LVGL lock.
 
 #### `void set_breathing_inhale_curve(breathing_ease_type_t ease_type)`
 Set the easing curve for breathing animation inhale phase.
