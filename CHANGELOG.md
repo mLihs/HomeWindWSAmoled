@@ -4,6 +4,11 @@ All notable changes to the HomeWindWSAmoled library are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.8.0] - 2026-11-27
+
+### Added
+- `homewind_set_hr_shift_enabled(plus, minus)`: greys out the fan-control plus/minus keys at the HR hard limits (`COLOR_CONTROL_INACTIVE` #56565F) and ignores taps while inactive. Call under the LVGL lock.
+
 ## [1.7.1] - 2026-11-21
 
 ### Fixed

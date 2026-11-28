@@ -147,6 +147,16 @@ void homewind_set_fan_toggle(uint8_t fan_index, bool is_on);
  */
 void homewind_set_fan_control(fan_mode_t mode, bool target_on, uint8_t target_pct);
 
+/**
+ * @brief Enable or grey out the HR-range plus/minus keys (since 1.8.0)
+ *
+ * Inactive keys use COLOR_CONTROL_INACTIVE and ignore taps. Call under the
+ * LVGL lock. Defaults: both enabled.
+ * @param plus_enabled  false when lowering the range would cross HARD_MIN (50)
+ * @param minus_enabled false when raising the range would cross HARD_MAX (200)
+ */
+void homewind_set_hr_shift_enabled(bool plus_enabled, bool minus_enabled);
+
 /** @brief Register the plus/minus and mode callbacks (NULL to disable) */
 void homewind_set_fan_control_callbacks(hr_shift_callback_t shift, fan_mode_callback_t mode);
 

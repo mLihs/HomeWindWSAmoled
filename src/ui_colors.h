@@ -15,6 +15,7 @@
 #define COLOR_MODAL_BG          0x000000
 #define COLOR_MODAL_CARD        0x1E1E2A   /* also the dark control fields */
 #define COLOR_CONTROL_PRESSED   0x2F2F42   /* plus / minus pressed */
+#define COLOR_CONTROL_INACTIVE  0x56565F   /* plus / minus at HR hard limit */
 #define COLOR_QR_AREA           0x1E2733
 #define COLOR_GREEN             0x06BB60   /* fan on, badge connected */
 #define COLOR_WARNING           0xFC9300   /* fan error, badge lost */

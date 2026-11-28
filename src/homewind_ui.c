@@ -110,6 +110,13 @@ static bool fan_target_on = false;
 static uint8_t fan_pct = 0;
 static bool fan_control_dirty = true;
 static bool fan_dots_dirty = true;
+static bool hr_plus_enabled = true;
+static bool hr_minus_enabled = true;
+
+static lv_obj_t *btn_hr_plus = NULL;
+static lv_obj_t *btn_hr_minus = NULL;
+static lv_obj_t *lbl_hr_plus = NULL;
+static lv_obj_t *lbl_hr_minus = NULL;
 
 static fan_toggle_callback_t fan_toggle_callback = NULL;
 static hr_shift_callback_t hr_shift_callback = NULL;
@@ -232,10 +239,12 @@ static void control_event_cb(lv_event_t *e)
             if (code == LV_EVENT_CLICKED) animate_overlay_in();
             break;
         case CTRL_MINUS:
-            if (code == LV_EVENT_CLICKED && hr_shift_callback) hr_shift_callback(1);
+            if (code == LV_EVENT_CLICKED && hr_minus_enabled && hr_shift_callback)
+                hr_shift_callback(1);
             break;
         case CTRL_PLUS:
-            if (code == LV_EVENT_CLICKED && hr_shift_callback) hr_shift_callback(-1);
+            if (code == LV_EVENT_CLICKED && hr_plus_enabled && hr_shift_callback)
+                hr_shift_callback(-1);
             break;
         case CTRL_MODE:
             if (code == LV_EVENT_PRESSING && !long_press_fired &&
@@ -520,6 +529,26 @@ static lv_obj_t *create_field_icon(lv_obj_t *field, const char *icon)
     return lbl;
 }
 
+static void apply_hr_shift_buttons(void)
+{
+    if (lbl_hr_plus) {
+        lv_obj_set_style_text_color(lbl_hr_plus,
+            lv_color_hex(hr_plus_enabled ? COLOR_WHITE : COLOR_CONTROL_INACTIVE), 0);
+    }
+    if (btn_hr_plus) {
+        if (hr_plus_enabled) lv_obj_add_flag(btn_hr_plus, LV_OBJ_FLAG_CLICKABLE);
+        else lv_obj_clear_flag(btn_hr_plus, LV_OBJ_FLAG_CLICKABLE);
+    }
+    if (lbl_hr_minus) {
+        lv_obj_set_style_text_color(lbl_hr_minus,
+            lv_color_hex(hr_minus_enabled ? COLOR_WHITE : COLOR_CONTROL_INACTIVE), 0);
+    }
+    if (btn_hr_minus) {
+        if (hr_minus_enabled) lv_obj_add_flag(btn_hr_minus, LV_OBJ_FLAG_CLICKABLE);
+        else lv_obj_clear_flag(btn_hr_minus, LV_OBJ_FLAG_CLICKABLE);
+    }
+}
+
 static void create_fan_control(lv_obj_t *parent)
 {
     lv_obj_t *control = lv_obj_create(parent);
@@ -530,9 +559,9 @@ static void create_fan_control(lv_obj_t *parent)
     lv_obj_set_flex_flow(control, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_column(control, 4, 0);
 
-    lv_obj_t *minus = create_control_field(control, FAN_SIDE_W, CTRL_MINUS);
-    lv_obj_set_style_bg_color(minus, lv_color_hex(COLOR_CONTROL_PRESSED), LV_STATE_PRESSED);
-    create_field_icon(minus, ICON_MINUS);
+    btn_hr_minus = create_control_field(control, FAN_SIDE_W, CTRL_MINUS);
+    lv_obj_set_style_bg_color(btn_hr_minus, lv_color_hex(COLOR_CONTROL_PRESSED), LV_STATE_PRESSED);
+    lbl_hr_minus = create_field_icon(btn_hr_minus, ICON_MINUS);
 
     lv_obj_t *center = create_control_field(control, 0, CTRL_MODE);
     lv_obj_set_flex_grow(center, 1);
@@ -568,9 +597,10 @@ static void create_fan_control(lv_obj_t *parent)
     lv_obj_t *dots = create_fan_dots(center, fan_dots);
     lv_obj_align(dots, LV_ALIGN_TOP_MID, 0, 100);
 
-    lv_obj_t *plus = create_control_field(control, FAN_SIDE_W, CTRL_PLUS);
-    lv_obj_set_style_bg_color(plus, lv_color_hex(COLOR_CONTROL_PRESSED), LV_STATE_PRESSED);
-    create_field_icon(plus, ICON_PLUS);
+    btn_hr_plus = create_control_field(control, FAN_SIDE_W, CTRL_PLUS);
+    lv_obj_set_style_bg_color(btn_hr_plus, lv_color_hex(COLOR_CONTROL_PRESSED), LV_STATE_PRESSED);
+    lbl_hr_plus = create_field_icon(btn_hr_plus, ICON_PLUS);
+    apply_hr_shift_buttons();
 }
 
 static const char *fan_mode_name(fan_mode_t mode)
@@ -601,6 +631,7 @@ static void update_fan_control(void)
             lv_obj_set_style_bg_color(fan_dots[i], lv_color_hex(fan_dot_color(fans[i].state, fans[i].is_on)), 0);
         }
     }
+    apply_hr_shift_buttons();
 }
 
 /* --- Screensaver content --- */
@@ -980,6 +1011,14 @@ void homewind_set_fan_control(fan_mode_t mode, bool target_on, uint8_t target_pc
     fan_pct = target_pct;
     fan_control_dirty = true;
     update_fan_control();
+}
+
+void homewind_set_hr_shift_enabled(bool plus_enabled, bool minus_enabled)
+{
+    if (plus_enabled == hr_plus_enabled && minus_enabled == hr_minus_enabled) return;
+    hr_plus_enabled = plus_enabled;
+    hr_minus_enabled = minus_enabled;
+    apply_hr_shift_buttons();
 }
 
 void homewind_set_fan_control_callbacks(hr_shift_callback_t shift, fan_mode_callback_t mode)
